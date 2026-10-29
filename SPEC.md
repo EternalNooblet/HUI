@@ -84,6 +84,12 @@ Two paths, chosen by how the gateway is reachable:
   gateway operator sets `HERMES_GATEWAY_ALLOW_PUBLIC_TOKEN_AUTH=1` to allow
   token auth without pre-registration. (Exact env var name: check
   `hermes gateway --help` / the gateway source before relying on it.)
+  HUI exposes this two ways: `-token <t>` (the app appends `?token=` to
+  whatever URL it resolves; an explicit `token=` already in `-url` wins) and
+  `-host <name>[:<port>]` (a bare host name is expanded to
+  `ws://<host>:<port>/api/ws` with a compiled-in default port for the
+  owner's gateway; `main.defaultGatewayPort`). `-url` and `-host` are
+  mutually exclusive.
 
 Practical rule verified on this machine: a loopback connection without a
 ticket is refused; a non-loopback bind (0.0.0.0:9119) is gated for remote

@@ -17,9 +17,15 @@ What it does
 Usage
 -----
 
-    hui -url ws://<remote-host>:<port>/api/ws
+    hui -host cachyos-pc -token <t>          # host alias; app fills in port + path
+    hui -url ws://<remote-host>:<port>/api/ws -token <t>
 
-- `-url` (required): WebSocket URL of the Hermes gateway, e.g. `ws://<remote-host>:9119/api/ws`
+- `-url`: full WebSocket URL of the Hermes gateway (mutually exclusive with `-host`)
+- `-host <name>[:<port>]`: bare host name (optionally with `:port`); the app fills
+  in `ws://<host>:<port>/api/ws` using the owner's gateway port (default 41841,
+  override per call with `-host name:port`)
+- `-token <t>`: gateway auth token for remote connections; appended to the URL as
+  `?token=`; an explicit `token=` already in `-url` wins (stderr warning on mismatch)
 - `-session <id>`: resume a specific session instead of creating a new one
 - `-ticket <t>`: one-use gateway session ticket (local/loopback connections; the gateway mints it via its control socket — see `tools/mint_ticket.py`)
 - `-debug <file>`: log every wire frame to a file
