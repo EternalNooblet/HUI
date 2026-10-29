@@ -2,6 +2,9 @@ package main
 
 // HUI — Hermes Unofficial Interface: a standalone terminal client for a remote
 // Hermes gateway over WebSocket JSON-RPC. Zero Hermes code on this side.
+//
+// Default gateway port for -host: the bound port of the owner's gateway.
+// Override per invocation with -host name:port.
 
 import (
 	"bufio"
@@ -61,29 +64,29 @@ func pnum(m map[string]any, key string) (float64, bool) {
 // ─── gateway connection ──────────────────────────────────────────────────────
 
 const (
-	protocolName       = "hermes-gateway-v1"
-	ticketPrefix       = "hermes-gateway-ticket."
-	heartbeatEvery     = 15 * time.Second
-	heartbeatDeadline  = 45 * time.Second
-	defaultRPCTimeout  = 30 * time.Second
-	attachRPCTimeout   = 120 * time.Second
-	readyTimeout       = 15 * time.Second
-	reconnectAttempts  = 5
-	reconnectBackoff   = 2 * time.Second
+	protocolName      = "hermes-gateway-v1"
+	ticketPrefix      = "hermes-gateway-ticket."
+	heartbeatEvery    = 15 * time.Second
+	heartbeatDeadline = 45 * time.Second
+	defaultRPCTimeout = 30 * time.Second
+	attachRPCTimeout  = 120 * time.Second
+	readyTimeout      = 15 * time.Second
+	reconnectAttempts = 5
+	reconnectBackoff  = 2 * time.Second
 )
 
 type gateway struct {
 	url    string
 	ticket string
 
-	ws     *WSConn
-	wmu    sync.Mutex
-	seq    int
+	ws      *WSConn
+	wmu     sync.Mutex
+	seq     int
 	pending map[int]chan frame
-	pmu    sync.Mutex
+	pmu     sync.Mutex
 
-	frames chan frame
-	dead   chan struct{} // closed when the socket reader exits
+	frames   chan frame
+	dead     chan struct{} // closed when the socket reader exits
 	deadOnce sync.Once
 
 	lastPong time.Time
@@ -342,7 +345,7 @@ type app struct {
 	snapshotInfo   map[string]any
 
 	prompts  []*pendingPrompt // FIFO of open prompts
-	streamed strings.Builder // assistant text streamed this turn
+	streamed strings.Builder  // assistant text streamed this turn
 	pInTurn  bool             // an assistant reply is streaming
 	usage    map[string]any
 
@@ -363,6 +366,59 @@ func newRandomID() string {
 
 var debugFile *os.File
 
+const defaultGatewayPort = "41841"
+
+// gatewayURL builds the full ws URL from a bare host (optionally host:port).
+func gatewayURL(hostSpec string) (string, error) {
+	host, port := hostSpec, defaultGatewayPort
+	if i := strings.IndexByte(hostSpec, ':'); i >= 0 {
+		host = hostSpec[:i]
+		port = hostSpec[i+1:]
+	}
+	if host == "" || port == "" {
+		return "", fmt.Errorf("invalid -host %q (want name or name:port)", hostSpec)
+	}
+	return "ws://" + host + ":" + port + "/api/ws", nil
+}
+
+// percentEncodeToken escapes everything outside the URI query-safe set.
+func percentEncodeToken(tok string) string {
+	var b []byte
+	for _, c := range []byte(tok) {
+		keep := c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' ||
+			c == '-' || c == '.' || c == '_' || c == ':'
+		if keep {
+			b = append(b, c)
+		} else {
+			b = append(b, []byte(fmt.Sprintf("%%%02X", c))...)
+		}
+	}
+	return string(b)
+}
+
+// applyToken appends token=<tok> unless the URL already carries one (explicit
+// URL token wins; a mismatch is reported on stderr, not fatal).
+func applyToken(urlStr, tok string) string {
+	if tok == "" {
+		return urlStr
+	}
+	if i := strings.Index(urlStr, "token="); i >= 0 {
+		end := len(urlStr)
+		if j := strings.IndexByte(urlStr[i:], '&'); j >= 0 {
+			end = i + j
+		}
+		if existing := urlStr[i+len("token=") : end]; existing != tok {
+			fmt.Fprintf(os.Stderr, "hui: URL token=%s wins over -token %s\n", existing, tok)
+		}
+		return urlStr
+	}
+	sep := "?"
+	if strings.Contains(urlStr, "?") {
+		sep = "&"
+	}
+	return urlStr + sep + "token=" + percentEncodeToken(tok)
+}
+
 func debugLog(dir string, v any) {
 	if debugFile == nil {
 		return
@@ -372,17 +428,33 @@ func debugLog(dir string, v any) {
 }
 
 func main() {
-	url := flag.String("url", "", "WebSocket URL of the Hermes gateway, e.g. ws://host:9119/api/ws (required)")
+	url := flag.String("url", "", "WebSocket URL of the Hermes gateway (either -url or -host is required)")
+	hostF := flag.String("host", "", "gateway host name, optionally host:port; the app fills in ws://<host>:<port>/api/ws with the default port (41841)")
+	tokenF := flag.String("token", "", "gateway auth token for remote (non-loopback) connections; appended to the URL as ?token=")
 	ticket := flag.String("ticket", "", "one-use session ticket for a loopback gateway (optional)")
 	sessionID := flag.String("session", "", "resume this session id instead of creating a new one")
 	debug := flag.String("debug", "", "log every wire frame to this file")
 	flag.Parse()
 
-	if *url == "" {
-		fmt.Fprintln(os.Stderr, "usage: hui -url ws://<remote-host>:<port>/api/ws [-session <id>] [-ticket <t>]")
+	if *url == "" && *hostF == "" {
+		fmt.Fprintln(os.Stderr, "usage: hui (-url ws://<host>:<port>/api/ws | -host <name>[:<port>]) [-token <t>] [-session <id>] [-ticket <t>]")
 		flag.PrintDefaults()
 		os.Exit(2)
 	}
+	if *url != "" && *hostF != "" {
+		fmt.Fprintln(os.Stderr, "hui: -url and -host are mutually exclusive")
+		os.Exit(2)
+	}
+	target := *url
+	if *hostF != "" {
+		built, err := gatewayURL(*hostF)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "hui: "+err.Error())
+			os.Exit(2)
+		}
+		target = built
+	}
+	target = applyToken(target, *tokenF)
 	if *debug != "" {
 		f, err := os.OpenFile(*debug, os.O_CREATE|os.O_WRONLY|os.O_APPEND|os.O_TRUNC, 0o600)
 		if err == nil {
@@ -424,7 +496,7 @@ func main() {
 		a.shutdown(false)
 	}()
 
-	if err := a.run(*url, *ticket, *sessionID); err != nil {
+	if err := a.run(target, *ticket, *sessionID); err != nil {
 		a.ren.eraseDraft()
 		a.ren.printBlock(ansiRed+"hui: "+err.Error()+ansiReset, false)
 		a.ren.flush()
@@ -720,7 +792,7 @@ func (a *app) addQueuePrompt(p map[string]any) {
 	pp := &pendingPrompt{
 		id: pstr(p, "prompt_id"), kind: kind, viaQueue: true,
 		sessionID: a.sessionID, generation: gen,
-		choices:    asStrings(p["choices"]),
+		choices:     asStrings(p["choices"]),
 		multiSelect: false,
 	}
 	switch kind {
