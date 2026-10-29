@@ -4,7 +4,7 @@ HUI: Hermes Unofficial Interface
 Demo
 ----
 
-![HUI demo](hui-demo.gif)
+![HUI demo](assets/hui-demo.gif)
 
 A quick walkthrough of a full session: connect, typed prompt, streamed reply,
 /status, an inline approval answered by choice number, and a clean exit.
@@ -75,5 +75,5 @@ Build
 Windows 11: run build.bat in a terminal. Needs a Go toolchain (found in
 PATH, then ~/.local/opt/go); produces one statically-linked binary.
 
-Engineering reference: SPEC.md — wire protocol, terminal behavior, and the
+Engineering reference: docs/SPEC.md — wire protocol, terminal behavior, and the
 full verification record.

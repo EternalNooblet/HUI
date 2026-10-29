@@ -24,7 +24,7 @@ set GOARCH=amd64
 
 cd /d "%~dp0"
 if not exist builds mkdir builds
-"%GOEXE%" build -trimpath -ldflags "-s -w -X main.buildStamp=%TS%" -o builds\hui.exe .
+"%GOEXE%" build -trimpath -ldflags "-s -w -X main.buildStamp=%TS%" -o builds\hui.exe ./cmd/hui
 if errorlevel 1 (
     echo build failed 1>&2
     exit /b 1

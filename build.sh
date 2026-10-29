@@ -25,5 +25,5 @@ esac
 if [ "${GOOS:-}" = "windows" ]; then
     OUT=hui.exe
 fi
-CGO_ENABLED=0 "$GO" build -trimpath -ldflags "-s -w -X main.buildStamp=$TS" -o "builds/$OUT" .
+CGO_ENABLED=0 "$GO" build -trimpath -ldflags "-s -w -X main.buildStamp=$TS" -o "builds/$OUT" ./cmd/hui
 echo "built ./builds/$OUT (build $TS)"
