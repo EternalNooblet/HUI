@@ -1,0 +1,63 @@
+name: release
+
+# HUI release pipeline: cross-compiles static binaries for Linux, macOS,
+# and Windows, then publishes a GitHub Release with one binary per target.
+#
+# Trigger: push a version tag:  git tag v0.1.0 && git push origin v0.1.0
+# Manual:  gh workflow run release.yml -f ref=v0.1.0
+
+on:
+  push:
+    tags: ['v*']
+  workflow:
+    inputs:
+      ref:
+        description: 'Tag or ref to build and release (e.g. v0.1.0)'
+        required: true
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout: 15m
+    steps:
+      - name: Resolve release target
+        id: resolve
+        outputs:
+          ref: ${{ github.event_name == 'push' && github.event.ref || github.event.workflow.inputs.ref }}
+
+      - name: Checkout target
+        git-ref: ${{ steps.resolve.outputs.ref }}
+
+      - name: Install Go toolchain
+        uses: ppb/ppb-apt-get@v1
+        with:
+          install: go
+
+      - name: Build all targets
+        run: |
+          build() {
+            local goos=$1 goarch=$2 name=$3
+            local ts=$(date -u +%Y%m%d%H%M%S)
+            echo "building $name ($goos/$goarch, stamp $ts)"
+            CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.buildStamp=$ts" -o "dist/$name" .
+          }
+          mkdir -p dist
+          build linux amd64 hui-linux-x86_64
+          build linux arm64 hui-linux-arm64
+          build darwin arm64 hui-mac-arm64
+          build darwin amd64 hui-mac-x86_64
+          build windows amd64 hui-windows-x86_64.exe
+          ls -l dist
+
+      - name: Publish release
+        uses: ppb/ghsf@v1
+        with:
+          resolve: published-or-create
+          name: ${{ steps.resolve.outputs.ref }}
+          upload-file: |
+            dist/hui-linux-x86_64 hui-linux-x86_64
+            dist/hui-linux-arm64 hui-linux-arm64
+            dist/hui-mac-arm64 hui-mac-arm64
+            dist/hui-mac-x86_64 hui-mac-x86_64
+            dist/hui-windows-x86_64.exe hui-windows-x86_64.exe
