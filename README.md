@@ -1,6 +1,14 @@
 Hermes Unofficial Interface (HUI)
 =================================
 
+Demo
+----
+
+    hui-demo.mp4
+
+A quick walkthrough of a full session: connect, typed prompt, streamed reply,
+/status, an inline approval answered by choice number, and a clean exit.
+
 A standalone terminal client for a remote Hermes gateway. One executable,
 nothing installed: it connects to a gateway running elsewhere and gives you
 a full-screen chat TUI — the conversation streams above, you edit your next
