@@ -27,19 +27,23 @@ Source layout
     build.sh          build script (CGO_ENABLED=0, embeds build timestamp,
                       outputs into builds/)
     build.bat         Windows build script (produces builds/hui.exe)
-    main.go           wire types, gateway connection, app state machine, events,
+    cmd/hui/          the client, one main package:
+        main.go       wire types, gateway connection, app state machine, events,
                       prompts (approval/clarify/sudo/secret), slash commands,
                       reconnect/shutdown
-    ws.go             RFC 6455 WebSocket client (handshake, masking, fragmentation,
+        ws.go         RFC 6455 WebSocket client (handshake, masking, fragmentation,
                       ping/pong, close), ws:// and wss://
-    keys.go           stdin key decoder (raw bytes -> key events), kitty protocol,
+        keys.go       stdin key decoder (raw bytes -> key events), kitty protocol,
                       win32-input-mode decoder
-    render.go         double-buffered frame renderer (alt-screen, diff-based)
-    term_linux.go     raw-mode termios via syscall (linux build tag)
-    term_darwin.go    same for darwin
-    term_windows.go   raw mode via the Windows Console API (windows build tag)
+        render.go     double-buffered frame renderer (alt-screen, diff-based)
+        term_linux.go raw-mode termios via syscall (linux build tag)
+        term_darwin.go same for darwin
+        term_windows.go raw mode via the Windows Console API (windows build tag)
     builds/           build output (hui / hui.exe), kept out of the source tree
-    tools/            mint_access_token.py, hui_bin.py, pty_test*.py (test harnesses)
+    assets/           demo media (hui-demo.gif, hui-demo.mp4)
+    docs/             SPEC.md (this document)
+    tools/            mint_access_token.py, hui_bin.py, pty_test*.py (test harnesses),
+                      demo/ (regeneration kit)
 
 2. Transport
 ------------
@@ -414,7 +418,7 @@ Slash commands
 
 `./build.sh`:
 
-    CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.buildStamp=$TS" -o builds/hui .
+    CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.buildStamp=$TS" -o builds/hui ./cmd/hui
 
 - All builds land in `builds/` (auto-created); the source tree stays clean.
 - CGO_ENABLED=0 -> fully static binary (verified: `file` reports "statically

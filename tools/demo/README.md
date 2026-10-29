@@ -1,9 +1,9 @@
-tools/demo — regenerate hui-demo.mp4
-====================================
+tools/demo — regenerate assets/hui-demo.mp4
+==========================================
 
 Runs the demo pipeline: narrate.sh synthesizes the voiceover segments,
 framegen.py paces the session timeline into PNG frames, assemble.sh concatenates
-the audio and encodes ../../hui-demo.mp4.
+the audio and encodes ../../assets/hui-demo.mp4.
 
 Requirements
 - system python3 with Pillow + fonttools
@@ -20,7 +20,7 @@ Run, from this directory:
     bash narrate.sh      # 8 narration wavs + durations.json
     python3 framegen.py  # 15fps PNG frames in frames/, paced by durations.json
     bash assemble.sh     # concat audio (+0.6s pad per segment) and encode
-                         # ../../hui-demo.mp4
+                         # ../../assets/hui-demo.mp4
 
 durations.json, seg*.wav, narration.wav, silence.wav and frames/ are
 generated intermediates and gitignored.

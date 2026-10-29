@@ -21,7 +21,7 @@ with wave.open('narration.wav','rb') as w:
     print(f"narration: rate={w.getframerate()} ch={w.getnchannels()} dur={w.getnframes()/w.getframerate():.2f}s")
 PY
 
-OUT=../../hui-demo.mp4
+OUT=../../assets/hui-demo.mp4
 ffmpeg -y -v error -framerate 15 -i frames/f%05d.png -i narration.wav \
   -c:v libx264 -preset medium -crf 19 -pix_fmt yuv420p -c:a aac -b:a 192k \
   -movflags +faststart -shortest "$OUT"
