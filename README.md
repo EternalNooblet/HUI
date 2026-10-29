@@ -15,13 +15,31 @@ Usage
 
 One of -host or -url is required.
 
-- -host <name>     backend host, optionally name:port (default port 9119 —
-                   the hermes serve backend; pass an explicit port to reach
-                   a messaging gateway). The app fills in protocol and path.
+- -host <name>     backend host, optionally name:port (default port 9119).
+                   The app fills in protocol and path.
 - -url <url>       full WebSocket URL
-- -token <t>       gateway auth token
+- -token <t>       signed access blob (see the Token section below)
 - -session <id>    resume an existing session instead of starting a new one
 - -debug <file>    write every wire frame to a file
+
+Token
+-----
+
+Start the backend on the network:
+
+    hermes serve --host 0.0.0.0
+
+The backend must have its auth config (username + password + signing secret).
+The client token is a signed blob that mints in one command (~12 h validity):
+
+    ./tools/mint_access_token.py > last-token.txt
+
+Then connect:
+
+    hui -host <lan-host-or-ip> -token "$(cat last-token.txt)"
+
+When it expires, rerun the mint command. That signed blob is the only token
+HUI ever needs.
 
 Using the app
 -------------
