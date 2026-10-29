@@ -4,7 +4,7 @@ Hermes Unofficial Interface (HUI)
 Demo
 ----
 
-![HUI demo](hui-demo.mp4)
+![HUI demo](hui-demo.gif)
 
 A quick walkthrough of a full session: connect, typed prompt, streamed reply,
 /status, an inline approval answered by choice number, and a clean exit.
