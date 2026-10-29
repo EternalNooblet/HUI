@@ -15,8 +15,9 @@ Usage
 
 One of -host or -url is required.
 
-- -host <name>     gateway host, optionally name:port (default port 41841;
-                   the app fills in protocol and path)
+- -host <name>     backend host, optionally name:port (default port 9119 —
+                   the hermes serve backend; pass an explicit port to reach
+                   a messaging gateway). The app fills in protocol and path.
 - -url <url>       full WebSocket URL
 - -token <t>       gateway auth token
 - -session <id>    resume an existing session instead of starting a new one
