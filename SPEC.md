@@ -39,8 +39,7 @@ Source layout
     term_darwin.go    same for darwin
     term_windows.go   raw mode via the Windows Console API (windows build tag)
     builds/           build output (hui / hui.exe), kept out of the source tree
-    tools/            mint_ticket.py, fakegw.py, hui_bin.py, pty_test*.py,
-                      screen_test.py (test harnesses)
+    tools/            mint_ticket.py, hui_bin.py, pty_test*.py (test harnesses)
 
 2. Transport
 ------------
@@ -419,10 +418,6 @@ Windows 11
                     socket (same-user only, SO_PEERCRED gate): identify ->
                     profile/instance -> session-ticket verb. Prints JSON with
                     ticket/api_origin/profile_id.
-- fakegw.py       — a scripted fake gateway for testing the prompt flows
-                    without a real gateway: speaks the wire protocol
-                    (newline-delimited JSON-RPC) and issues approval/clarify/
-                    sudo srq prompts, checks the client's answers.
 - hui_bin.py      — resolves the binary from builds/ (fallback: legacy ./hui)
                     so the harnesses do not hardcode a path. Override with
                     HUI_BIN.
@@ -514,9 +509,6 @@ Known gaps (not yet live-tested):
   (kitty CSI u sequences), redraws, and the prompt glyph only behave
   correctly under a real PTY. pty_test*.py harnesses proved Shift+Enter
   wiring and the Ctrl+C shutdown path.
-- A fake gateway (fakegw.py) is the fastest way to iterate on prompt flows
-  (approval/clarify/sudo) without burning real model turns or polluting the
-  user's session history on the gateway.
 - Build for static from the start: CGO_ENABLED=0 + -trimpath + -s -w gives
   one file that runs anywhere (no libc dependency, no debug info).
 - Tools that get installed on the fly (a Go toolchain fetched to
