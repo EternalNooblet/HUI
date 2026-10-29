@@ -3,8 +3,7 @@ HUI: Hermes Unofficial Interface
 
 Demo
 ----
-
-![HUI demo](assets/hui-demo.gif)
+https://github.com/user-attachments/assets/f7f06a7f-36cd-4025-932a-67bf193476c7
 
 A quick walkthrough of a full session: connect, typed prompt, streamed reply,
 /status, an inline approval answered by choice number, and a clean exit.
