@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Drive hui in a pseudo-terminal: mint a ticket, connect, send a prompt,
-watch the streamed reply, then exercise slash commands and quit."""
-import glob
-import json
+"""Drive hui in a pseudo-terminal: mint an access token, connect, send a prompt,
+watch the streamed reply, then exercise slash commands and quit.
+
+Remote path only: hermes serve on 9119, signed access blob via -token.
+Host defaults to the verified LAN gateway; override with HUI_TEST_HOST."""
 import os
 import pty
 import re
@@ -15,16 +16,18 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from hui_bin import hui_bin as HUI
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PY = (glob.glob(os.path.expanduser("~/.hermes/tools/python-3.14.9*/bin/python3"))
-      or glob.glob(os.path.expanduser("~/.hermes/tools/python-3.14*/bin/python3")))[0]
-mint = subprocess.run([PY, os.path.join(HERE, "mint_ticket.py")],
+PY = sys.executable  # mint needs stdlib yaml — pinned Hermes builds lack it
+mint = subprocess.run([PY, os.path.join(HERE, "mint_access_token.py")],
                       capture_output=True, text=True, check=True, timeout=10)
-ticket = json.loads(mint.stdout)["ticket"]
+token = mint.stdout.strip()
+if not token:
+    raise SystemExit("mint_access_token.py produced no token")
+lan_host = os.environ.get("HUI_TEST_HOST", "10.0.0.126")
 
 pid, fd = pty.fork()
 if pid == 0:  # child
     os.execv(HUI(),
-             ["hui", "-url", "ws://127.0.0.1:9119/api/ws", "-ticket", ticket,
+             ["hui", "-host", f"{lan_host}:9119", "-token", token,
               "-debug", "/tmp/hui-wire3.log"])
 
 os.environ.setdefault("TERM", "xterm-256color")
