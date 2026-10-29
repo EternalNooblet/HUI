@@ -77,7 +77,9 @@ The gateway offers two auth paths; HUI uses the TOKEN path only:
   `-token <t>` (the app appends `?token=` to the resolved URL) and
   `-host <name>[:<port>]` (a bare host name is expanded to
   `ws://<host>:<port>/api/ws`; default port is the compiled-in
-  `main.defaultGatewayPort` = 41841). `-url` and `-host` are mutually exclusive.
+  `main.defaultGatewayPort` = 9119, the `hermes serve` backend; reach a
+  messaging gateway by passing its port explicitly). `-url` and `-host`
+  are mutually exclusive.
 - TICKETED (the gateway's loopback path, subprotocol
   `hermes-gateway-ticket.<ticket>`, one-use, 30 s, minted via the owner-only
   control socket `~/.hermes/gateway.sock`): used by the local `hermes` CLI;
@@ -113,7 +115,9 @@ Connection lifecycle
    for 45 s, the socket is considered dead and the connection is closed
    locally (the gateway answers within one send deadline, so 45 s silence
    means a dead peer).
-5. On exit or /new: `session.detach`.
+5. On exit or /new: `session.detach` (only when the backend handed out a
+   subscription_id — on the serve surface none exists, so shutdown ends with
+   a close frame and the idle row is closed by backend liveness rules).
 
 Client→server RPCs (all used by HUI)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -121,27 +125,44 @@ Client→server RPCs (all used by HUI)
 gateway.ping (heartbeat)
     params: none. Answer is ignored.
 
+runtime.describe (contract probe)
+    params: none. HUI queries this before session.create/session.resume and
+    filters its request against the declared `session_create.parameters` /
+    `session_resume.parameters` — the pattern first-party clients use. On the
+    canonical serve surface the method is unknown (error -32601), which is
+    how the strict request shape is selected.
+
 session.create
-    params: `{"request_id": "<random-hex>", "source": "cli"}`
-    result: `{"session_id": "...", "subscription_id": "...", "info": {...},
-             "prompts": [...]}` — `info` carries `model`, `profile_name`.
+    Two backend surfaces, selected by the probe above:
+    - messaging gateway (describe answers): params `{"request_id": "<random-hex>",
+      "source": "cli"}` (request_id included only when its contract lists it).
+    - canonical serve (describe -32601): params `{"source": "cli"}` only —
+      request_id answers 4000 "Extra inputs are not permitted".
+    result: `{"session_id", "stored_session_id", "info": {...}, "messages": [...]}`;
+    `info` carries `model`, `profile_name`. `subscription_id` and a `prompts`
+    queue appear on the messaging gateway only; serve hands out no
+    subscription, so detach cannot fire there and the idle row is closed by
+    the backend's own liveness rules instead of by the client.
 
 session.resume
-    params: `{"session_id": "...", "display_projection": true}`
-    result: same shape plus `display_messages` (or `messages`): rows of
-    `{"role":"user"|"assistant","text":"...", "name":"...", "context":"..."}`.
-    Rows with `name` set are tool/aux events rendered as dim `· name context`.
-    `display_projection: true` asks for the rendered history.
-    Also returns any pending `prompts` queue entries so prompts that arrived
-    while the client was away are restored.
+    params (gateway): `{"session_id": "...", "display_projection": true}`;
+    params (serve): `{"session_id": "..."}` only — display_projection answers
+    4000 there. The contract names the STORED id: always send the
+    `stored_session_id` from an earlier snapshot (a runtime id answers 4007
+    "session not found"; `-session <id>` likewise takes a stored id/title).
+    result: snapshot rows — `display_messages` on the gateway, plain
+    `messages` on serve (no display projection exists there; rendered the
+    same), rows being `{"role":"user"|"assistant","text":"...", "name":…,
+    "context":…}`; rows with `name` set are tool/aux events rendered dim.
+    Also returns any pending `prompts` queue entries restored for the client.
 
 prompt.submit
-    params: `{"session_id": "...", "text": "...", "submission_id":
-             "<random-hex>", "queued": true}`
-    Multi-line text: real `\n` inside the text (from Shift+Enter). Verified
-    on the wire. The result arrives before the stream starts; streaming then
-    arrives as events. `queued: true` lets the gateway queue the turn if the
-    session is busy.
+    params: `{"session_id": "...", "text": "...", "queued": true}` —
+    `submission_id` is NOT sent: the canonical PromptSubmitParams rejects it
+    (4000). `queued: true` lets a busy session queue the turn.
+    Multi-line text: real `\n` inside the text (from Shift+Enter). The reply
+    arrives as message.start / message.delta* (+ thinking.delta) /
+    message.complete events.
 
 session.detach
     params: `{"session_id": "...", "subscription_id": "...", "end_reason": "..."}`
@@ -230,12 +251,16 @@ these inline with a result frame:
 - /new, /reset: `session.detach` with end_reason=new_session, then a fresh
   session.create. The old session is closed server-side.
 - Reconnect: on socket death (heartbeat timeout or read error), the client
-  reconnects up to 5 times with 2 s backoff, resuming the SAME session_id
-  (session.resume with display_projection=false). Resume failure on the
-  reconnect path does NOT silently create a new session — it errors out and
-  keeps the session id so the user can resume manually (`-session <id>`).
-  The "reattach to session" error text is matched; on it, the client quits
-  instead of looping.
+  reconnects up to 5 times with 2 s backoff, resuming the SAME session — it
+  names the `stored_session_id` recorded from the first snapshot (naming the
+  runtime id answers 4007 on serve). On the serve surface the connection can
+  drop even while pings answer; every reattach then resumes the stored row
+  transparently and the transcript/queue come back from the snapshot.
+  `display_projection` is only sent when the described contract lists it.
+  Resume failure on the reconnect path does NOT silently create a new
+  session — it errors out and keeps the session id so the user can resume
+  manually (`-session <id>`, stored id). The "reattach to session" error
+  text is matched; on it, the client quits instead of looping.
 - Quit (Ctrl+C, Ctrl+D, /exit, /quit, EOF): detach with end_reason=cli_close,
   erase the draft, restore the terminal, exit 0. Second Ctrl+C during cleanup
   force-exits with 130. A single cleanup flag (`cleaned`) guards against the
@@ -379,7 +404,9 @@ Slash commands
 ~~~~~~~~~~~~~~
     /new /reset   detach (new_session) + fresh session
     /status       client build stamp, gateway URL, session id, model,
-                  profile, runtime.describe caps/instance
+                  profile; runtime.describe caps/instance when the backend
+                  describes itself (on serve describe is unknown — model/
+                  profile still come from the session snapshot)
     /help         command list
     /exit /quit   quit
     unknown /xxx  prints a dim note AND is sent to the agent verbatim
@@ -440,6 +467,18 @@ Verification performed (live gateway + fake gateway + PTY):
 - Ctrl+C: clean quit, single detach, terminal restored
 - approval/clarify/sudo answered with the right result shapes
   ({"choice":"once"}, {"answers":{"q1":…}}, {"value":…})
+
+Serve-surface verification (hermes serve 0.22.5, ws://127.0.0.1:9119/api/ws,
+token auth via HERMES_DASHBOARD_SESSION_TOKEN):
+- runtime.describe answers -32601 -> session.create {"source":"cli"} accepted;
+  snapshot carries model/profile (no subscription_id on this surface).
+- two prompts round-trip: message.start/delta*/thinking.delta/message.complete
+  stream and render; usage line shows; clean /exit, exit 0.
+- five ws drops mid-run (server closes between turns): every reattach resumed
+  by stored_session_id and restored the transcript (message_count grew across
+  resumes); zero parameter errors on the wire.
+- not sent on this surface: session.detach (no subscription_id exists to
+  detach); the idle row is left to backend liveness rules.
 
 Windows 11 verification:
 - Cross-compile: GOOS=windows GOARCH=amd64 produces a PE32+ x86-64 console
@@ -553,3 +592,6 @@ handleKey path only.
 - wss:// against a real gateway.
 - Native Windows 11 console session (built and vetted for windows/amd64; the
   console-API switches await a real Windows run).
+- Messaging-gateway re-check after dropping submission_id from prompt.submit
+  (the gateway accepted it while it was sent; its behaviour without it is
+  unverified — the serve surface rejects it outright, which drove the drop).
