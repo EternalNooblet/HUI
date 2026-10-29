@@ -3,8 +3,9 @@ package main
 // HUI — Hermes Unofficial Interface: a standalone terminal client for a remote
 // Hermes gateway over WebSocket JSON-RPC. Zero Hermes code on this side.
 //
-// Default gateway port for -host: the bound port of the owner's gateway.
-// Override per invocation with -host name:port.
+// Default backend for -host: hermes serve (JSON-RPC/WebSocket gateway at
+// /api/ws, default port 9119). The messaging gateway works too: pass
+// -host name:port for it.
 
 import (
 	"bufio"
@@ -335,9 +336,10 @@ type app struct {
 	keys    chan keyEvent
 	keyQuit chan struct{}
 
-	sessionID      string
-	subscriptionID string
-	snapshotInfo   map[string]any
+	sessionID       string
+	storedSessionID string // durable row id from a snapshot; session.resume names THIS id
+	subscriptionID  string
+	snapshotInfo    map[string]any
 
 	prompts  []*pendingPrompt // FIFO of open prompts
 	streamed strings.Builder  // assistant text streamed this turn
@@ -361,7 +363,13 @@ func newRandomID() string {
 
 var debugFile *os.File
 
-const defaultGatewayPort = "41841"
+const defaultGatewayPort = "9119"
+
+// Both session.open and session.resume requests are negotiated per connection
+// against the backend's own contract (runtime.describe), the pattern hermes'
+// first-party clients use: the messaging gateway declares the extra params and
+// accepts them; the canonical serve surface answers -32601 and enforces strict
+// schemas that reject them.
 
 // gatewayURL builds the full ws URL from a bare host (optionally host:port).
 func gatewayURL(hostSpec string) (string, error) {
@@ -424,7 +432,7 @@ func debugLog(dir string, v any) {
 
 func main() {
 	url := flag.String("url", "", "WebSocket URL of the Hermes gateway (either -url or -host is required)")
-	hostF := flag.String("host", "", "gateway host name, optionally host:port; the app fills in ws://<host>:<port>/api/ws with the default port (41841)")
+	hostF := flag.String("host", "", "backend host name, optionally host:port; the app fills in ws://<host>:<port>/api/ws with the default port (9119 = hermes serve)")
 	tokenF := flag.String("token", "", "gateway auth token for remote (non-loopback) connections; appended to the URL as ?token=")
 	sessionID := flag.String("session", "", "resume this session id instead of creating a new one")
 	debug := flag.String("debug", "", "log every wire frame to this file")
@@ -555,10 +563,14 @@ func (a *app) attach(url, resumeID string, renderHistory bool) error {
 	if resumeID != "" || a.sessionID != "" {
 		id := resumeID
 		if id == "" {
-			id = a.sessionID
+			// session.resume names the stored row id; fall back to the runtime id
+			// only for backends that never handed us a stored one.
+			id = a.storedSessionID
+			if id == "" {
+				id = a.sessionID
+			}
 		}
-		snap, err = a.rpcSession("session.resume", map[string]any{
-			"session_id": id, "display_projection": renderHistory})
+		snap, err = a.rpcSession("session.resume", a.resumeSessionParams(id, renderHistory))
 		if err != nil {
 			if a.sessionID == "" {
 				return fmt.Errorf("resume %s: %w", id, err)
@@ -567,14 +579,16 @@ func (a *app) attach(url, resumeID string, renderHistory bool) error {
 			return fmt.Errorf("reattach to session %s failed: %v — session id kept for manual resume", id, err)
 		}
 	} else {
-		snap, err = a.rpcSession("session.create", map[string]any{
-			"request_id": newRandomID(), "source": "cli"})
+		snap, err = a.rpcSession("session.create", a.createSessionParams())
 		if err != nil {
 			return fmt.Errorf("session.create: %w", err)
 		}
 	}
 	a.sessionID, _ = snap["session_id"].(string)
 	a.subscriptionID, _ = snap["subscription_id"].(string)
+	if stored, ok := snap["stored_session_id"].(string); ok && stored != "" {
+		a.storedSessionID = stored
+	}
 	if info, ok := snap["info"].(map[string]any); ok {
 		a.snapshotInfo = info
 	}
@@ -617,6 +631,62 @@ func (a *app) rpcSession(method string, params map[string]any) (map[string]any, 
 		res = map[string]any{}
 	}
 	return res, nil
+}
+
+// createSessionParams negotiates the session.create request against the backend's
+// own declared contract, the pattern hermes' first-party clients use (hermes_cli
+// queries runtime.describe and filters the launch request to accepted
+// parameters):
+//   - runtime.describe answers with session_create.parameters: include request_id
+//     only when it is listed (the messaging gateway declares it; the canonical
+//     tui/serve SessionCreateParams rejects it outright).
+//   - runtime.describe unknown (-32601): that is the canonical hermes serve
+//     surface — strict schema, no request_id.
+//   - describe otherwise fails: keep the legacy shape (request_id included) so a
+//     pre-describe gateway still works.
+func (a *app) createSessionParams() map[string]any {
+	attrs := map[string]any{"source": "cli"}
+	includeRequestID := true
+	desc, derr := a.rpcSession("runtime.describe", map[string]any{})
+	if derr == nil {
+		accepted := asStrings(asMap(desc["session_create"])["parameters"])
+		// An answer without a usable parameter list: the canonical strict schema.
+		includeRequestID = len(accepted) > 0 && contains(accepted, "request_id")
+	} else if e, ok := derr.(rpcError); ok && e.code == -32601 {
+		includeRequestID = false
+	}
+	if includeRequestID {
+		attrs["request_id"] = newRandomID()
+	}
+	return attrs
+}
+
+// resumeSessionParams negotiates the session.resume request the same way:
+// include display_projection only when the backend's described contract lists
+// it; describe -32601 is the canonical strict serve surface, which rejects it.
+func (a *app) resumeSessionParams(id string, projection bool) map[string]any {
+	attrs := map[string]any{"session_id": id}
+	keepProjection := true
+	desc, derr := a.rpcSession("runtime.describe", map[string]any{})
+	if derr == nil {
+		accepted := asStrings(asMap(desc["session_resume"])["parameters"])
+		keepProjection = len(accepted) == 0 || contains(accepted, "display_projection")
+	} else if e, ok := derr.(rpcError); ok && e.code == -32601 {
+		keepProjection = false
+	}
+	if keepProjection {
+		attrs["display_projection"] = projection
+	}
+	return attrs
+}
+
+func contains(list []string, want string) bool {
+	for _, s := range list {
+		if s == want {
+			return true
+		}
+	}
+	return false
 }
 
 // ─── transcript rendering ────────────────────────────────────────────────────
@@ -1326,10 +1396,9 @@ func (a *app) sendPrompt(text string) {
 		"id":      newRandomID(),
 		"method":  "prompt.submit",
 		"params": map[string]any{
-			"session_id":    a.sessionID,
-			"text":          text,
-			"submission_id": newRandomID(),
-			"queued":        true,
+			"session_id": a.sessionID,
+			"text":       text,
+			"queued":     true,
 		},
 	}
 	if err := a.gw.send(f); err != nil {

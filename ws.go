@@ -173,7 +173,7 @@ func atoiSafe(s string) int {
 
 type textHeaders map[string][]string
 
-func (h textHeaders) add(k, v string)    { h[k] = append(h[k], v) }
+func (h textHeaders) add(k, v string) { h[k] = append(h[k], v) }
 func (h textHeaders) Get(k string) string {
 	if len(h[k]) == 0 {
 		return ""
@@ -278,12 +278,12 @@ func (ws *WSConn) readFrame() (fin bool, op byte, payload []byte, err error) {
 }
 
 const (
-	opCont  = 0x0
-	opText  = 0x1
+	opCont   = 0x0
+	opText   = 0x1
 	opBinary = 0x2
-	opClose = 0x8
-	opPing  = 0x9
-	opPong  = 0xA
+	opClose  = 0x8
+	opPing   = 0x9
+	opPong   = 0xA
 )
 
 func (ws *WSConn) writeFrame(op byte, payload []byte) error {
