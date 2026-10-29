@@ -39,7 +39,7 @@ Source layout
     term_darwin.go    same for darwin
     term_windows.go   raw mode via the Windows Console API (windows build tag)
     builds/           build output (hui / hui.exe), kept out of the source tree
-    tools/            mint_ticket.py, hui_bin.py, pty_test*.py (test harnesses)
+    tools/            mint_access_token.py, hui_bin.py, pty_test*.py (test harnesses)
 
 2. Transport
 ------------
@@ -69,24 +69,28 @@ Framing
 3. Authentication
 -----------------
 
-The gateway offers two auth paths; HUI uses the TOKEN path only:
+HUI speaks to one backend: `hermes serve` bound to the network
+(`hermes serve --host 0.0.0.0`). That bind always engages the auth gate
+(`--insecure` no longer skips it — verified against backend source, 2026-10-29),
+and the only credential HUI sends over `/api/ws` is `?token=<signed access blob>`:
 
-- TOKEN: the client connects with `?token=<token>` in the URL (gateway operators
-  may set `HERMES_GATEWAY_ALLOW_PUBLIC_TOKEN_AUTH=1`; verify the exact variable
-  against `hermes gateway --help` before relying on it). HUI provides it two ways:
-  `-token <t>` (the app appends `?token=` to the resolved URL) and
-  `-host <name>[:<port>]` (a bare host name is expanded to
-  `ws://<host>:<port>/api/ws`; default port is the compiled-in
-  `main.defaultGatewayPort` = 9119, the `hermes serve` backend; reach a
-  messaging gateway by passing its port explicitly). `-url` and `-host`
-  are mutually exclusive.
-- TICKETED (the gateway's loopback path, subprotocol
-  `hermes-gateway-ticket.<ticket>`, one-use, 30 s, minted via the owner-only
-  control socket `~/.hermes/gateway.sock`): used by the local `hermes` CLI;
-  HUI does not offer this path.
+- Blob = base64url( compact JSON `{"sub":<username>,"kind":"access","exp":<epoch>}`
+  + HMAC-SHA256(that JSON, the backend's signing secret) ). Username and signing
+  secret come from the backend's auth config; recipe in README.
+- Verification is stateless — recomputed from the secret; nothing on disk or in
+  the gateway holds the token. Expiry travels inside the blob.
+- Raw literals can never pass: valid blobs are ~100+ chars, and anything ≤32
+  decoded bytes is rejected by construction.
 
-Practical rule verified on this machine: a connection with no `token=` is refused
-(403), with or without a loopback name; a URL carrying the right `token=` connects.
+`-token <t>` appends `?token=` to the resolved URL (a URL's own `token=` wins;
+stderr warning on mismatch); `-host <name>[:<port>]` expands to
+`ws://<host>:<port>/api/ws` with compiled-in default port 9119 (the serve
+backend); `-url` and `-host` are mutually exclusive.
+
+Verified end-to-end 2026-10-29: a raw literal token answers HTTP 403
+(auth audit: `session_token_invalid`) from any address; a self-minted blob
+against the LAN bind connected, created a session, answered a prompt, resumed
+after ws drops, and closed cleanly with exit 0.
 
 4. Wire protocol (JSON-RPC 2.0)
 -------------------------------
@@ -115,9 +119,9 @@ Connection lifecycle
    for 45 s, the socket is considered dead and the connection is closed
    locally (the gateway answers within one send deadline, so 45 s silence
    means a dead peer).
-5. On exit or /new: `session.detach` (only when the backend handed out a
-   subscription_id — on the serve surface none exists, so shutdown ends with
-   a close frame and the idle row is closed by backend liveness rules).
+5. On exit or /new: no detach fires on this backend (it hands out no
+   subscription); shutdown ends with a close frame and the idle row is left
+   to the backend's liveness rules.
 
 Client→server RPCs (all used by HUI)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -128,33 +132,27 @@ gateway.ping (heartbeat)
 runtime.describe (contract probe)
     params: none. HUI queries this before session.create/session.resume and
     filters its request against the declared `session_create.parameters` /
-    `session_resume.parameters` — the pattern first-party clients use. On the
-    canonical serve surface the method is unknown (error -32601), which is
-    how the strict request shape is selected.
+    `session_resume.parameters` — the pattern first-party clients use. On this
+    backend the method is unknown (error -32601), which is how the strict
+    request shape is selected.
 
 session.create
-    Two backend surfaces, selected by the probe above:
-    - messaging gateway (describe answers): params `{"request_id": "<random-hex>",
-      "source": "cli"}` (request_id included only when its contract lists it).
-    - canonical serve (describe -32601): params `{"source": "cli"}` only —
-      request_id answers 4000 "Extra inputs are not permitted".
+    params: `{"source": "cli"}` only — `request_id` answers 4000 "Extra inputs
+    are not permitted".
     result: `{"session_id", "stored_session_id", "info": {...}, "messages": [...]}`;
-    `info` carries `model`, `profile_name`. `subscription_id` and a `prompts`
-    queue appear on the messaging gateway only; serve hands out no
-    subscription, so detach cannot fire there and the idle row is closed by
-    the backend's own liveness rules instead of by the client.
+    `info` carries `model`, `profile_name`. No subscription is handed out, so
+    detach never fires and the idle row is closed by the backend's liveness
+    rules, not by the client.
 
 session.resume
-    params (gateway): `{"session_id": "...", "display_projection": true}`;
-    params (serve): `{"session_id": "..."}` only — display_projection answers
-    4000 there. The contract names the STORED id: always send the
+    params: `{"session_id": "..."}` only — display_projection answers 4000
+    here. The contract names the STORED id: always send the
     `stored_session_id` from an earlier snapshot (a runtime id answers 4007
     "session not found"; `-session <id>` likewise takes a stored id/title).
-    result: snapshot rows — `display_messages` on the gateway, plain
-    `messages` on serve (no display projection exists there; rendered the
-    same), rows being `{"role":"user"|"assistant","text":"...", "name":…,
-    "context":…}`; rows with `name` set are tool/aux events rendered dim.
-    Also returns any pending `prompts` queue entries restored for the client.
+    result: snapshot rows — plain `messages`, rows being `{"role":"user"|
+    "assistant","text":"...", "name":…, "context":…}`; rows with `name` set
+    are tool/aux events rendered dim. Also returns any pending `prompts`
+    queue entries restored for the client.
 
 prompt.submit
     params: `{"session_id": "...", "text": "...", "queued": true}` —
@@ -441,10 +439,9 @@ Windows 11
 8. Test tooling (tools/)
 ------------------------
 
-- mint_ticket.py  — mints a one-use gateway session ticket via the control
-                    socket (same-user only, SO_PEERCRED gate): identify ->
-                    profile/instance -> session-ticket verb. Prints JSON with
-                    ticket/api_origin/profile_id.
+- mint_access_token.py — mints a signed access blob from the backend's auth
+                         config (username + signing secret) for HUI remote
+                         tests. Prints the token on stdout; pair with -token.
 - hui_bin.py      — resolves the binary from builds/ (fallback: legacy ./hui)
                     so the harnesses do not hardcode a path. Override with
                     HUI_BIN.
@@ -469,7 +466,7 @@ Verification performed (live gateway + fake gateway + PTY):
   ({"choice":"once"}, {"answers":{"q1":…}}, {"value":…})
 
 Serve-surface verification (hermes serve 0.22.5, ws://127.0.0.1:9119/api/ws,
-token auth via HERMES_DASHBOARD_SESSION_TOKEN):
+literal config token — pre-gate era):
 - runtime.describe answers -32601 -> session.create {"source":"cli"} accepted;
   snapshot carries model/profile (no subscription_id on this surface).
 - two prompts round-trip: message.start/delta*/thinking.delta/message.complete
@@ -479,6 +476,15 @@ token auth via HERMES_DASHBOARD_SESSION_TOKEN):
   resumes); zero parameter errors on the wire.
 - not sent on this surface: session.detach (no subscription_id exists to
   detach); the idle row is left to backend liveness rules.
+
+Remote-gated verification (2026-10-29, hermes serve --host 0.0.0.0 dialed as
+10.0.0.126 with a self-minted signed blob from tools/mint_access_token.py):
+- upgrade accepted where the literal token 403'd (auth audit confirmed
+  session_token_invalid for literals); session created (id logged), prompt
+  round-trip streamed a reply + usage line, mid-run ws drops re-dialled and
+  resumed by stored id, EOF close -> clean bye, exit 0.
+- wire log 121 frames, 97 method rows; token is stateless (never stored
+  server-side), expiry lives inside the blob.
 
 Windows 11 verification:
 - Cross-compile: GOOS=windows GOARCH=amd64 produces a PE32+ x86-64 console
@@ -519,9 +525,9 @@ Known gaps (not yet live-tested):
   actual rows. Substring greps on output are NOT enough — they passed while
   the screen was garbage. The model must treat an omitted/zero param on J/K
   as 0 (clear from cursor), and must handle alt-screen ?1049h/l correctly.
-- Loopback auth is via the control socket, not a password. The gateway mints
-  one-use tickets over `~/.hermes/gateway.sock` (owner-only). Remote binds
-  are gated; token auth needs ?token= or an env var.
+- The remote credential is signed, never stored: verification recomputes the
+  HMAC from the signing secret; expiry travels inside the token. Rotating the
+  secret or the auth config invalidates every outstanding blob.
 - message.delta: absent/empty `text` = segment boundary, NOT empty content.
   Getting this wrong inserts phantom paragraph breaks.
 - message.complete: compare final text with what was streamed; duplicate
@@ -592,6 +598,3 @@ handleKey path only.
 - wss:// against a real gateway.
 - Native Windows 11 console session (built and vetted for windows/amd64; the
   console-API switches await a real Windows run).
-- Messaging-gateway re-check after dropping submission_id from prompt.submit
-  (the gateway accepted it while it was sent; its behaviour without it is
-  unverified — the serve surface rejects it outright, which drove the drop).

@@ -1,2 +1,6 @@
 builds/
 __pycache__/
+
+# generated credentials + session notes, never committed
+last-token.txt
+REFERENCE.md
