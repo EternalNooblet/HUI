@@ -266,26 +266,18 @@ func (r *renderer) flush() {
 	_ = r.out.Flush()
 }
 
-// close restores the terminal: pops the kitty/win32 input modes, leaves the
-// alternate screen, and dumps the tail of the conversation into the normal
-// scrollback so the session stays visible after exit.
+// close restores the terminal: pops the kitty/win32 input modes and leaves the
+// alternate screen. The transcript is deliberately NOT re-dumped to the
+// scrollback — quitting leaves whatever the terminal already shows.
 func (r *renderer) close() {
 	if !r.tty {
 		_ = r.out.Flush()
 		return
 	}
-	r.flush() // paint the final frame (e.g. "bye")
+	r.flush()                               // paint the final frame (e.g. "bye")
 	r.out.WriteString("\x1b[<u\x1b[?9001l") // kitty pop + win32 pop (harmless elsewhere)
-	r.out.WriteString("\x1b[?1049l")         // leave alternate screen
+	r.out.WriteString("\x1b[?1049l")        // leave alternate screen
 	_ = r.out.Flush()
-
-	start := len(r.rows) - r.height
-	if start < 0 {
-		start = 0
-	}
-	for _, row := range r.rows[start:] {
-		fmt.Fprintln(os.Stdout, stripANSI(row))
-	}
 }
 
 // ─── width helpers ────────────────────────────────────────────────────────────
