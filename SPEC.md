@@ -70,30 +70,22 @@ Framing
 3. Authentication
 -----------------
 
-Two paths, chosen by how the gateway is reachable:
+The gateway offers two auth paths; HUI uses the TOKEN path only:
 
-- TICKETED (loopback / same-host): the client passes a one-use ticket via
-  subprotocol. The subprotocols offered are
-  `["hermes-gateway-v1", "hermes-gateway-ticket.<ticket>"]`.
-  The ticket is minted by the gateway's OWNER-ONLY control socket
-  (`~/.hermes/gateway.sock`, gated by SO_PEERCRED — same-user peers only):
-  see `tools/mint_ticket.py`. One use, 30 s validity. The user-facing gateway
-  CLI uses the same mechanism (`-ticket` flag on the local `hermes` CLI).
-- TOKEN (remote / non-loopback bind): the gateway gates remote clients. A
-  client connects with `?token=<dashboard session token>` in the URL, or the
-  gateway operator sets `HERMES_GATEWAY_ALLOW_PUBLIC_TOKEN_AUTH=1` to allow
-  token auth without pre-registration. (Exact env var name: check
-  `hermes gateway --help` / the gateway source before relying on it.)
-  HUI exposes this two ways: `-token <t>` (the app appends `?token=` to
-  whatever URL it resolves; an explicit `token=` already in `-url` wins) and
+- TOKEN: the client connects with `?token=<token>` in the URL (gateway operators
+  may set `HERMES_GATEWAY_ALLOW_PUBLIC_TOKEN_AUTH=1`; verify the exact variable
+  against `hermes gateway --help` before relying on it). HUI provides it two ways:
+  `-token <t>` (the app appends `?token=` to the resolved URL) and
   `-host <name>[:<port>]` (a bare host name is expanded to
-  `ws://<host>:<port>/api/ws` with a compiled-in default port for the
-  owner's gateway; `main.defaultGatewayPort`). `-url` and `-host` are
-  mutually exclusive.
+  `ws://<host>:<port>/api/ws`; default port is the compiled-in
+  `main.defaultGatewayPort`). `-url` and `-host` are mutually exclusive.
+- TICKETED (the gateway's loopback path, subprotocol
+  `hermes-gateway-ticket.<ticket>`, one-use, 30 s, minted via the owner-only
+  control socket `~/.hermes/gateway.sock`): used by the local `hermes` CLI;
+  HUI does not offer this path.
 
-Practical rule verified on this machine: a loopback connection without a
-ticket is refused; a non-loopback bind (0.0.0.0:9119) is gated for remote
-clients. A non-loopback URL with an empty token fails auth.
+Practical rule verified on this machine: a connection with no `token=` is refused
+(403), with or without a loopback name; a URL carrying the right `token=` connects.
 
 4. Wire protocol (JSON-RPC 2.0)
 -------------------------------

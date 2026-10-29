@@ -65,7 +65,6 @@ func pnum(m map[string]any, key string) (float64, bool) {
 
 const (
 	protocolName      = "hermes-gateway-v1"
-	ticketPrefix      = "hermes-gateway-ticket."
 	heartbeatEvery    = 15 * time.Second
 	heartbeatDeadline = 45 * time.Second
 	defaultRPCTimeout = 30 * time.Second
@@ -76,8 +75,7 @@ const (
 )
 
 type gateway struct {
-	url    string
-	ticket string
+	url string
 
 	ws      *WSConn
 	wmu     sync.Mutex
@@ -93,9 +91,9 @@ type gateway struct {
 	hbStop   chan struct{}
 }
 
-func newGateway(url, ticket string) *gateway {
+func newGateway(url string) *gateway {
 	return &gateway{
-		url: url, ticket: ticket,
+		url:     url,
 		frames:  make(chan frame, 256),
 		dead:    make(chan struct{}),
 		pending: map[int]chan frame{},
@@ -104,10 +102,7 @@ func newGateway(url, ticket string) *gateway {
 }
 
 func (g *gateway) subprotocols() []string {
-	if g.ticket == "" {
-		return []string{protocolName}
-	}
-	return []string{protocolName, ticketPrefix + g.ticket}
+	return []string{protocolName}
 }
 
 func (g *gateway) connect() error {
@@ -431,13 +426,12 @@ func main() {
 	url := flag.String("url", "", "WebSocket URL of the Hermes gateway (either -url or -host is required)")
 	hostF := flag.String("host", "", "gateway host name, optionally host:port; the app fills in ws://<host>:<port>/api/ws with the default port (41841)")
 	tokenF := flag.String("token", "", "gateway auth token for remote (non-loopback) connections; appended to the URL as ?token=")
-	ticket := flag.String("ticket", "", "one-use session ticket for a loopback gateway (optional)")
 	sessionID := flag.String("session", "", "resume this session id instead of creating a new one")
 	debug := flag.String("debug", "", "log every wire frame to this file")
 	flag.Parse()
 
 	if *url == "" && *hostF == "" {
-		fmt.Fprintln(os.Stderr, "usage: hui (-url ws://<host>:<port>/api/ws | -host <name>[:<port>]) [-token <t>] [-session <id>] [-ticket <t>]")
+		fmt.Fprintln(os.Stderr, "usage: hui (-url ws://<host>:<port>/api/ws | -host <name>[:<port>]) [-token <t>] [-session <id>]")
 		flag.PrintDefaults()
 		os.Exit(2)
 	}
@@ -496,7 +490,7 @@ func main() {
 		a.shutdown(false)
 	}()
 
-	if err := a.run(target, *ticket, *sessionID); err != nil {
+	if err := a.run(target, *sessionID); err != nil {
 		a.ren.eraseDraft()
 		a.ren.printBlock(ansiRed+"hui: "+err.Error()+ansiReset, false)
 		a.ren.flush()
@@ -518,8 +512,8 @@ func (a *app) restoreTerm() {
 	}
 }
 
-func (a *app) run(url, ticket, resumeID string) error {
-	if err := a.attach(url, ticket, resumeID, true); err != nil {
+func (a *app) run(url, resumeID string) error {
+	if err := a.attach(url, resumeID, true); err != nil {
 		return err
 	}
 	a.loop()
@@ -530,8 +524,8 @@ func (a *app) run(url, ticket, resumeID string) error {
 }
 
 // attach connects, waits for gateway.ready and opens (or resumes) a session.
-func (a *app) attach(url, ticket, resumeID string, renderHistory bool) error {
-	g := newGateway(url, ticket)
+func (a *app) attach(url, resumeID string, renderHistory bool) error {
+	g := newGateway(url)
 	a.gw = g
 	if err := g.connect(); err != nil {
 		return fmt.Errorf("connect: %w", err)
@@ -1348,7 +1342,7 @@ func (a *app) newSession() {
 	a.prompts = nil
 	a.sessionID = ""
 	a.ren.dimf("── new session ──")
-	if err := a.attach(a.gw.url, a.gw.ticket, "", true); err != nil {
+	if err := a.attach(a.gw.url, "", true); err != nil {
 		a.ren.printBlock(ansiRed+"! "+err.Error()+ansiReset, false)
 		a.quit = true
 	}
@@ -1408,14 +1402,13 @@ func (a *app) printHelp() {
 func (a *app) reconnect() {
 	a.ren.printBlock(ansiYellow+"! gateway connection lost; reconnecting…"+ansiReset, false)
 	url := a.gw.url
-	ticket := a.gw.ticket
 	a.gw.close()
 	for attempt := 1; attempt <= reconnectAttempts; attempt++ {
 		time.Sleep(reconnectBackoff)
 		if a.quit {
 			return
 		}
-		err := a.attach(url, ticket, "", false)
+		err := a.attach(url, "", false)
 		if err == nil {
 			a.ren.dimf("· reconnected to %s", url)
 			return

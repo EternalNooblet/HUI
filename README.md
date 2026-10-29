@@ -12,23 +12,21 @@ What it does
 - Supports slash commands (`/new`, `/reset`, `/status`, `/help`, etc.)
 - Answers inline approval / clarify / sudo prompts from the gateway
 - `𖦏` prompt on its own line; Enter sends; Shift+Enter inserts a newline into your draft (client-side only); Up/Down recall input history
-- On quit, the last screenful of the conversation is dumped into the terminal so it stays visible
 
 Usage
 -----
 
-    hui -host cachyos-pc -token <t>          # host alias; app fills in port + path
-    hui -url ws://<remote-host>:<port>/api/ws -token <t>
+    hui -host cachyos-pc -token <t>
+    hui -url ws://<remote-host>:<port>/api/ws?token=<t>
 
-- `-url`: full WebSocket URL of the Hermes gateway (mutually exclusive with `-host`)
-- `-host <name>[:<port>]`: bare host name (optionally with `:port`); the app fills
-  in `ws://<host>:<port>/api/ws` using the owner's gateway port (default 41841,
-  override per call with `-host name:port`)
-- `-token <t>`: gateway auth token for remote connections; appended to the URL as
-  `?token=`; an explicit `token=` already in `-url` wins (stderr warning on mismatch)
-- `-session <id>`: resume a specific session instead of creating a new one
-- `-ticket <t>`: one-use gateway session ticket (local/loopback connections; the gateway mints it via its control socket — see `tools/mint_ticket.py`)
-- `-debug <file>`: log every wire frame to a file
+One of `-host` or `-url` is required.
+
+- `-host <name>`: gateway host name (optionally `name:port`); the app fills in
+  the protocol, the port (default: the gateway's own, 41841), and the path
+- `-url <url>`: full WebSocket URL, if you prefer to spell it out
+- `-token <t>`: the gateway auth token
+- `-session <id>`: resume an existing session instead of starting a new one
+- `-debug <file>`: write every wire frame to a file
 
 Build
 -----
@@ -52,7 +50,6 @@ Keybindings
 Testing
 -------
 `tools/` holds:
-- `mint_ticket.py` — mints a one-use gateway session ticket via the control socket
 - `fakegw.py` — scripted fake gateway for approval/clarify/sudo prompt flows without touching a real gateway
 - `pty_test*.py` — PTY harnesses against the live gateway (streaming, slash commands, Shift+Enter, /new, Ctrl+C)
 - `screen_test.py` — runs the real binary in a PTY and replays the bytes onto a virtual terminal grid, printing the actual rendered screen at each step (this is what verified the TUI)
