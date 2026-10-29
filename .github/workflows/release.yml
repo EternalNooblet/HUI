@@ -39,7 +39,7 @@ jobs:
             local goos=$1 goarch=$2 name=$3
             local ts=$(date -u +%Y%m%d%H%M%S)
             echo "building $name ($goos/$goarch, stamp $ts)"
-            CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.buildStamp=$ts" -o "dist/$name" .
+            GOOS=$goos GOARCH=$goarch CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.buildStamp=$ts" -o "dist/$name" .
           }
           mkdir -p dist
           build linux amd64 hui-linux-x86_64
