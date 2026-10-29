@@ -47,10 +47,12 @@ jobs:
 
       - name: Publish release
         env:
-          TAG: ${{ github.event.ref }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref }}
         run: |
-          gh release create "$TAG" \
-            --title "HUI $TAG" \
+          NAME="${TAG#refs/tags/}"
+          gh release create "$NAME" \
+            --title "HUI $NAME" \
             --generate-notes \
             "dist/hui-linux-x86_64#hui-linux-x86_64" \
             "dist/hui-linux-arm64#hui-linux-arm64"
