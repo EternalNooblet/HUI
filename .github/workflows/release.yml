@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
-      release: write
+      contents: write
     steps:
       - name: Checkout tag
         uses: actions/checkout@v4
