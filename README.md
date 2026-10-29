@@ -18,7 +18,7 @@ resends history.
 Usage
 -----
 
-    hui -host cachyos-pc -token <t>
+    hui -host <remote-host> -token <t>
     hui -url ws://<remote-host>:<port>/api/ws?token=<t>
 
 One of -host or -url is required.
