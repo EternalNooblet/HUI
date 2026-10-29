@@ -78,7 +78,7 @@ The gateway offers two auth paths; HUI uses the TOKEN path only:
   `-token <t>` (the app appends `?token=` to the resolved URL) and
   `-host <name>[:<port>]` (a bare host name is expanded to
   `ws://<host>:<port>/api/ws`; default port is the compiled-in
-  `main.defaultGatewayPort`). `-url` and `-host` are mutually exclusive.
+  `main.defaultGatewayPort` = 41841). `-url` and `-host` are mutually exclusive.
 - TICKETED (the gateway's loopback path, subprotocol
   `hermes-gateway-ticket.<ticket>`, one-use, 30 s, minted via the owner-only
   control socket `~/.hermes/gateway.sock`): used by the local `hermes` CLI;
@@ -309,6 +309,9 @@ Key decoding (keys.go)
     13 plain                       -> send
     57414 plain (keypad enter)     -> send
   Alt+Enter also works without the kitty protocol via ESC CR.
+- win32-input-mode: ctrl state is carried per keypress, so Ctrl+Enter
+  maps to the newline fallback there; note the kitty path treats
+  Ctrl+Enter as plain Enter (only shift-no-ctrl and alt are newline).
 - Alt+rune: the rune is treated as plain input.
 - Double-ESC: swallow one, ignore the rest.
 - SS3 `O A/B/C/D`: arrows.
@@ -366,7 +369,11 @@ Keybindings (app loop)
     Ctrl+W           delete word left
     Ctrl+A / Ctrl+E  home / end
     Backspace / Delete / Left / Right
-    Up / Down        reserved (no history yet)
+    Up / Down        browse input history: the last 100 submitted messages
+                     are stored; Up enters history mode (current draft saved),
+                     stepping Up/Down swaps a stored message into the draft
+                     (editable, resubmittable); Down past the newest entry
+                     exits history mode and restores the draft being typed.
     Ctrl+C also cancels a draft while a prompt is up (quit wins)
 
 Slash commands
@@ -554,4 +561,3 @@ handleKey path only.
 - wss:// against a real gateway.
 - Native Windows 11 console session (built and vetted for windows/amd64; the
   console-API switches await a real Windows run).
-- Up/Down history (input history) — not implemented.
