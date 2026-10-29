@@ -1,9 +1,9 @@
 name: release
 
-# HUI release pipeline (Linux-only e2e test): builds static binaries for
-# linux/x86_64 and linux/arm64, then publishes a GitHub Release under the
-# pushed v* tag. macOS and Windows targets are added after this path is
-# proven green.
+# HUI release pipeline: builds static binaries for linux/x86_64, linux/arm64,
+# and windows/x86_64 (cross-compiled from the Linux runner — stdlib-only code,
+# no cgo), then publishes a GitHub Release under the pushed v* tag. macOS
+# targets are added after the Windows path is proven green.
 #
 # Trigger: push a version tag:  git tag v0.1.0 && git push origin v0.1.0
 
@@ -33,7 +33,7 @@ jobs:
       - name: Verify toolchain
         run: go version
 
-      - name: Build Linux targets
+      - name: Build release targets
         run: |
           build() {
             local goos=$1 goarch=$2 name=$3
@@ -44,6 +44,7 @@ jobs:
           mkdir -p dist
           build linux amd64 hui-linux-x86_64
           build linux arm64 hui-linux-arm64
+          build windows amd64 hui-windows-x86_64.exe
           file dist/*
           ls -l dist
 
@@ -57,4 +58,5 @@ jobs:
             --title "HUI $NAME" \
             --generate-notes \
             "dist/hui-linux-x86_64#hui-linux-x86_64" \
-            "dist/hui-linux-arm64#hui-linux-arm64"
+            "dist/hui-linux-arm64#hui-linux-arm64" \
+            "dist/hui-windows-x86_64.exe#hui-windows-x86_64.exe"
