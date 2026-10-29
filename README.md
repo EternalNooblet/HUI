@@ -1,4 +1,4 @@
-Hermes Unofficial Interface (HUI)
+HUI: Hermes Unofficial Interface
 =================================
 
 Demo
