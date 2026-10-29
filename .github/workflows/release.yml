@@ -1,40 +1,36 @@
 name: release
 
-# HUI release pipeline: cross-compiles static binaries for Linux, macOS,
-# and Windows, then publishes a GitHub Release with one binary per target.
+# HUI release pipeline (Linux-only e2e test): builds static binaries for
+# linux/x86_64 and linux/arm64, then publishes a GitHub Release under the
+# pushed v* tag. macOS and Windows targets are added after this path is
+# proven green.
 #
 # Trigger: push a version tag:  git tag v0.1.0 && git push origin v0.1.0
-# Manual:  gh workflow run release.yml -f ref=v0.1.0
 
 on:
   push:
     tags: ['v*']
-  workflow:
-    inputs:
-      ref:
-        description: 'Tag or ref to build and release (e.g. v0.1.0)'
-        required: true
-        type: string
 
 jobs:
   release:
     runs-on: ubuntu-24.04
-    timeout: 15m
+    timeout-minutes: 15
     steps:
-      - name: Resolve release target
-        id: resolve
-        outputs:
-          ref: ${{ github.event_name == 'push' && github.event.ref || github.event.workflow.inputs.ref }}
-
-      - name: Checkout target
-        git-ref: ${{ steps.resolve.outputs.ref }}
-
-      - name: Install Go toolchain
-        uses: ppb/ppb-apt-get@v1
+      - name: Checkout tag
+        uses: actions/checkout@v4
         with:
-          install: go
+          git-ref: ${{ github.ref }}
 
-      - name: Build all targets
+      - name: Install Go
+        run: |
+          curl -fsSL https://dl.google.com/go/go1.27.3.linux-amd64.tar.gz \
+            | tar xz -C "$HOME/.local/opt"
+          echo "$HOME/.local/opt/go/bin" >> "$GITHUB_PATH"
+
+      - name: Verify toolchain
+        run: go version
+
+      - name: Build Linux targets
         run: |
           build() {
             local goos=$1 goarch=$2 name=$3
@@ -45,19 +41,15 @@ jobs:
           mkdir -p dist
           build linux amd64 hui-linux-x86_64
           build linux arm64 hui-linux-arm64
-          build darwin arm64 hui-mac-arm64
-          build darwin amd64 hui-mac-x86_64
-          build windows amd64 hui-windows-x86_64.exe
+          file dist/*
           ls -l dist
 
       - name: Publish release
-        uses: ppb/ghsf@v1
-        with:
-          resolve: published-or-create
-          name: ${{ steps.resolve.outputs.ref }}
-          upload-file: |
-            dist/hui-linux-x86_64 hui-linux-x86_64
-            dist/hui-linux-arm64 hui-linux-arm64
-            dist/hui-mac-arm64 hui-mac-arm64
-            dist/hui-mac-x86_64 hui-mac-x86_64
-            dist/hui-windows-x86_64.exe hui-windows-x86_64.exe
+        env:
+          TAG: ${{ github.event.ref }}
+        run: |
+          gh release create "$TAG" \
+            --title "HUI $TAG" \
+            --generate-notes \
+            "dist/hui-linux-x86_64#hui-linux-x86_64" \
+            "dist/hui-linux-arm64#hui-linux-arm64"
