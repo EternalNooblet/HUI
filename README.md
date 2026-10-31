@@ -9,7 +9,7 @@ Two independent components under one roof. **No shared deps, no shared builds, n
 | Component | Language | Purpose | Build |
 |-----------|----------|---------|-------|
 | **[hui-cli/](hui-cli/)** | Go (stdlib only) | Terminal TUI client for remote Hermes gateway | `./build.sh` → `builds/hui` / `builds/hui.exe` |
-| **[hui-phone/](hui-phone/)** | Python + Kotlin | 24/7 Android AI agent + companion app | `pip install -r requirements.txt` → `python3 phone_daemon.py --daemon` |
+| **[hui-phone/](hui-phone/)** | Kotlin/Gradle | Android companion app (sensor client → WSS server) | `./gradlew assembleRelease` → APK |
 
 ---
 
@@ -22,14 +22,13 @@ cd hui-cli
 ./builds/hui -host <gateway> -token <blob>
 ```
 
-### hui-phone (Python Agent)
+### hui-phone (Android Companion App)
 ```bash
-cd hui-phone
-pip install -r requirements.txt
-cp config.example.yaml config.yaml
-# edit config.yaml for your device
-python3 phone_daemon.py --test   # test attention detection
-python3 phone_daemon.py --daemon # run 24/7 daemon
+cd hui-phone/companion-app
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+export ANDROID_HOME=/home/papa/Android/Sdk
+./gradlew assembleRelease
+# Sign + install APK (see hui-phone/README.md)
 ```
 
 ---
@@ -37,7 +36,7 @@ python3 phone_daemon.py --daemon # run 24/7 daemon
 ## Releases
 
 - **hui-cli**: GitHub Actions (`.github/workflows/release.yml`) builds Linux/Windows binaries on tag push
-- **hui-phone**: No automated release yet — local builds only (`pip wheel .`, `./gradlew assembleRelease`)
+- **hui-phone**: No automated release yet — local Gradle build only
 
 ---
 
