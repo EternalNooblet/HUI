@@ -1,12 +1,10 @@
-> **Part of the [HUI project](../README.md)** — this is `hui-phone`, the Android companion app.
-
-# HUI Phone — Android Companion App
-
-Secure Android companion app that connects to a WSS server on a laptop. The phone acts as a sensor client; all heavy compute runs on the server.
+# <p align='center'>HUI Phone — Hermes Unofficial Interface App</p>
 
 <p align="center">
 <img src="face%20only%20-%20canvas.png" width="420" alt="HUI app icon — face canvas">
 </p>
+
+<p align='center'>Secure Android companion app that connects to a WSS server on a laptop. The phone acts as a sensor client; all heavy compute runs on the server.</p>
 
 ## Architecture
 
