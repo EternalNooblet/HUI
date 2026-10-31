@@ -14,6 +14,11 @@ local.properties
 companion-app/.gradle/
 companion-app/app/build/
 companion-app/build/
+# same, anchored for the mono-repo layout
+hui-phone/companion-app/.gradle/
+hui-phone/companion-app/app/build/
+hui-phone/companion-app/build/
+hui-phone/companion-app/build/reports/
 *.der
 server.crt
 server.key
