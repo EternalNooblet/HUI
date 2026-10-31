@@ -11,6 +11,12 @@ Two independent components under one roof. **No shared deps, no shared builds, n
 | **[hui-cli/](hui-cli/)** | Go (stdlib only) | Terminal TUI client for remote Hermes gateway | `./build.sh` → `builds/hui` / `builds/hui.exe` |
 | **[hui-phone/](hui-phone/)** | Kotlin/Gradle | Android companion app (sensor client → WSS server) | `./gradlew assembleRelease` → APK |
 
+### Demo
+
+A quick walkthrough of a full hui-cli session: connect, typed prompt, streamed reply, /status, an inline approval answered by choice number, and a clean exit.
+
+https://github.com/user-attachments/assets/f7f06a7f-36cd-4025-932a-67bf193476c7
+
 ---
 
 ## Quick Start
