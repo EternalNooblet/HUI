@@ -4,7 +4,9 @@
 
 Secure Android companion app that connects to a WSS server on a laptop. The phone acts as a sensor client; all heavy compute runs on the server.
 
-<img src="face%20only%20-%20canvas.png" width="160" alt="HUI app icon — face canvas" align="right">
+<p align="center">
+<img src="face%20only%20-%20canvas.png" width="420" alt="HUI app icon — face canvas">
+</p>
 
 ## Architecture
 
