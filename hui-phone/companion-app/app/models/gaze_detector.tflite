@@ -1,0 +1,6 @@
+# This is a placeholder file
+# Replace with actual trained TF Lite model for gaze detection
+# Model should accept:
+#   Input 1: Image [1, 224, 224, 3] (RGB, normalized 0-1)
+#   Input 2: Audio [1, 1600] (100ms @ 16kHz mono, normalized -1 to 1)
+#   Output: [1, 3] (addressing, looking, speaking probabilities)

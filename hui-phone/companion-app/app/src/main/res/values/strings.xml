@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">Companion</string>
+    <string name="notification_listener_label">Companion Notification Access</string>
+    <string name="notification_channel_id">companion_service</string>
+    <string name="notification_channel_name">Companion Service</string>
+    <string name="notification_channel_description">Keeps Companion running and connected</string>
+    <string name="notification_ongoing">Companion active - connected to server</string>
+    <string name="notification_tap_open">Tap to open settings</string>
+    <string name="permission_camera_rationale">Camera needed for gaze detection</string>
+    <string name="permission_mic_rationale">Microphone needed for speech detection</string>
+    <string name="permission_notification_rationale">Notification access needed for proactive alerts</string>
+</resources>
