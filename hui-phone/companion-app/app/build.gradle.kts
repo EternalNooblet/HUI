@@ -12,8 +12,25 @@ android {
         minSdk = 27  // Android 8.1
         targetSdk = 34
         versionCode = 1
-        versionName = "1.0.0"
-        
+
+        // Codename pools for build names
+        val gods = listOf("odin", "athena", "anubis", "loki", "ra", "thor", "freya", "hermes")
+        val animals = listOf("raven", "falcon", "wolf", "owl", "shark", "lynx", "cobra", "phoenix")
+        val science = listOf("quark", "nebula", "photon", "helix", "atom", "vector", "prism", "flux")
+        val aiTerms = listOf("token", "latent", "prompt", "inference", "embedding", "transformer", "attention")
+        val memes = listOf("skynet", "hal9000", "jarvis", "cortana", "glados", "bobby", "chad", "based")
+        val transformers = listOf("optimus", "megatron", "starscream", "bumblebee", "soundwave", "shockwave", "grimlock", "rodimus")
+
+        val allNames = gods + animals + science + aiTerms + memes + transformers
+        val codename = allNames[(Math.random() * allNames.size).toInt()]
+        val buildNumber = System.currentTimeMillis() / 1000
+
+        versionName = "1.0.0-$codename-$buildNumber"
+
+        buildConfigField("String", "BUILD_CODENAME", "\"$codename\"")
+        buildConfigField("Long", "BUILD_NUMBER", "${buildNumber}L")
+        buildConfigField("String", "BUILD_TIMESTAMP", "\"$buildNumber\"")
+
         buildConfigField("String", "SERVER_URL", "\"wss://10.0.0.126:8081\"")
         buildConfigField("String", "DEVICE_ID", "\"\"")
     }
@@ -65,37 +82,37 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("com.google.android.material:material:1.11.0")
-    
+
     // Lifecycle & Coroutines
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-    
+
     // CameraX
     val camerax_version = "1.3.3"
     implementation("androidx.camera:camera-core:${camerax_version}")
     implementation("androidx.camera:camera-camera2:${camerax_version}")
     implementation("androidx.camera:camera-lifecycle:${camerax_version}")
     implementation("androidx.camera:camera-view:${camerax_version}")
-    
+
     // TensorFlow Lite
     implementation("org.tensorflow:tensorflow-lite:2.14.0")
     implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
     implementation("org.tensorflow:tensorflow-lite-task-vision:0.4.4")
-    
+
     // OkHttp + WebSocket
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:okhttp-urlconnection:4.12.0")
-    
+
     // JSON
     implementation("com.google.code.gson:gson:2.10.1")
-    
+
     // EncryptedSharedPreferences for token storage
     implementation("androidx.security:security-crypto:1.1.0-alpha05")
-    
+
     // WorkManager for background tasks
     implementation("androidx.work:work-runtime-ktx:2.9.0")
-    
+
     // Logging
     implementation("com.jakewharton.timber:timber:5.0.1")
 }
