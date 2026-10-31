@@ -13,12 +13,14 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.southpawin.companion.util.Config
 import com.southpawin.companion.service.CompanionService
+import com.southpawin.companion.BuildConfig
 import timber.log.Timber
 
 class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var deviceIdText: TextView
     private lateinit var serverUrlText: TextView
+    private lateinit var buildNumberText: TextView
     private lateinit var connectButton: Button
     
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -28,6 +30,7 @@ class MainActivity : AppCompatActivity() {
         statusText = findViewById(R.id.statusText)
         deviceIdText = findViewById(R.id.deviceIdText)
         serverUrlText = findViewById(R.id.serverUrlText)
+        buildNumberText = findViewById(R.id.buildNumberText)
         connectButton = findViewById(R.id.connectButton)
         
         updateUI()
@@ -40,6 +43,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateUI() {
         deviceIdText.text = "Device ID: ${Config.deviceId}"
         serverUrlText.text = "Server: ${if (Config.serverUrl.isBlank()) "Not configured" else Config.serverUrl}"
+        buildNumberText.text = "Build: ${BuildConfig.BUILD_CODENAME}-${BuildConfig.BUILD_NUMBER}"
         
         val isRunning = isServiceRunning()
         statusText.text = if (isRunning) "Status: Running" else "Status: Stopped"
