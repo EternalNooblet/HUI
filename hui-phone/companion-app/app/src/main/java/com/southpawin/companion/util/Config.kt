@@ -24,6 +24,14 @@ object Config {
     var authToken: String? = null
         private set
     
+    // TTS voice selection (system voice locale code, e.g. "en-US", "fr-FR")
+    var ttsVoice: String? = null
+        private set
+    
+    // TTS pitch multiplier (0.5..2.0; 1.0 = neutral)
+    var ttsPitch: Float? = null
+        private set
+    
     // Detection intervals (configurable from server)
     var gazeCheckIntervalMs: Long = 2000
     var audioChunkMs: Int = 100
@@ -59,6 +67,8 @@ object Config {
     }
     
     fun updateFromCommand(payload: CommandPayload) {
+        payload.voice?.let { setVoice(it) }
+        payload.pitch?.let { setPitch(it) }
         payload.gazeCheckIntervalMs?.let { gazeCheckIntervalMs = it }
         payload.audioChunkMs?.let { audioChunkMs = it }
         payload.batteryReportIntervalS?.let { batteryReportIntervalS = it }
@@ -76,6 +86,28 @@ object Config {
     
     fun loadAuthToken(): String? {
         return getPrefs().getString("auth_token", null)?.also { authToken = it }
+    }
+    
+    fun setVoice(code: String) {
+        ttsVoice = code
+        getPrefs().edit().putString("tts_voice", code).apply()
+    }
+    
+    fun loadVoice(): String? {
+        return getPrefs().getString("tts_voice", null)?.also { ttsVoice = it }
+    }
+    
+    fun setPitch(multiplier: Float) {
+        ttsPitch = multiplier
+        getPrefs().edit().putFloat("tts_pitch", multiplier).apply()
+    }
+    
+    fun loadPitch(): Float? {
+        val stored = getPrefs().getFloat("tts_pitch", 0.0f)
+        if (stored > 0.0f) {
+            ttsPitch = stored
+        }
+        return if (stored > 0.0f) stored else ttsPitch
     }
     
     private fun getPrefs(): SharedPreferences {

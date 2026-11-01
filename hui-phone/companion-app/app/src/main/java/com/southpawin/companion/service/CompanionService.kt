@@ -42,7 +42,7 @@ class CompanionService : Service() {
     
     companion object {
         const val NOTIFICATION_ID = 1
-        const val CHANNEL_ID = "companion_service"
+        const val CHANNEL_ID = "companion_service_v2"
     }
     
     override fun onCreate() {
@@ -60,7 +60,7 @@ class CompanionService : Service() {
         screenMonitor = ScreenMonitor(this, eventBus)
         
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification("Connecting..."))
+        startForeground(NOTIFICATION_ID, buildNotification(""))
         
         startEventLoops()
         
@@ -106,19 +106,26 @@ class CompanionService : Service() {
     private fun createNotificationChannel() {
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Delete old channel if exists
+            notificationManager?.deleteNotificationChannel("companion_service")
+            
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 getString(R.string.notification_channel_name),
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_MIN
             ).apply {
                 description = getString(R.string.notification_channel_description)
                 setShowBadge(false)
+                enableLights(false)
+                enableVibration(false)
+                setSound(null, null)
+                lockscreenVisibility = Notification.VISIBILITY_SECRET
             }
             notificationManager?.createNotificationChannel(channel)
         }
     }
-    
-    private fun buildNotification(status: String): Notification {
+
+        private fun buildNotification(status: String): Notification {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
@@ -126,23 +133,29 @@ class CompanionService : Service() {
             this, 0, intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
-        
-        val color = when {
-            status.contains("Connected") -> getColor(R.color.connected)
-            status.contains("Connecting") -> getColor(R.color.connecting)
-            else -> getColor(R.color.disconnected)
+
+        // Only show "Connecting..." briefly, empty when connected/running
+        val lowerStatus = status.lowercase()
+        val displayText = when {
+            lowerStatus.contains("connected") || lowerStatus.contains("running") -> ""
+            lowerStatus.contains("connecting") -> "Connecting..."
+            else -> ""
         }
-        
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.app_name))
-            .setContentText(status)
+            .setContentText(displayText)
+            .setSubText("")
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pendingIntent)
-            .setColor(color)
-            .setColorized(true)
+            .setColor(getColor(R.color.primary))
+            .setColorized(false)
             .setOngoing(true)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setOnlyAlertOnce(true)
+            .setShowWhen(false)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setVisibility(NotificationCompat.VISIBILITY_SECRET)
             .build()
     }
     

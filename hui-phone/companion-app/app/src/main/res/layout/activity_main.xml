@@ -1,99 +1,122 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout 
+<androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="24dp"
     android:background="@color/background">
 
-    <TextView
-        android:id="@+id/appTitle"
-        android:layout_width="wrap_content"
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/app_name"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        android:textColor="@color/text_primary"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="48dp"/>
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+        android:background="@color/surface">
 
-    <TextView
-        android:id="@+id/statusText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Status: Checking..."
-        android:textSize="18sp"
-        android:textColor="@color/disconnected"
-        app:layout_constraintTop_toBottomOf="@id/appTitle"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="24dp"/>
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorPrimary"
+            app:titleTextColor="@color/text_primary"
+            app:menu="@menu/menu_main">
 
-    <TextView
-        android:id="@+id/deviceIdText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Device ID: ..."
-        android:textSize="14sp"
-        android:textColor="@color/text_secondary"
-        app:layout_constraintTop_toBottomOf="@id/statusText"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="16dp"/>
+            <TextView
+                android:id="@+id/buildNameText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="14sp"
+                android:textColor="@color/text_primary"
+                android:layout_gravity="end"
+                android:layout_marginEnd="16dp"/>
 
-    <TextView
-        android:id="@+id/serverUrlText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Server: Not configured"
-        android:textSize="14sp"
-        android:textColor="@color/text_secondary"
-        app:layout_constraintTop_toBottomOf="@id/deviceIdText"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="8dp"/>
+        </androidx.appcompat.widget.Toolbar>
 
-    <TextView
-        android:id="@+id/buildNumberText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Build: ..."
-        android:textSize="12sp"
-        android:textColor="@color/text_secondary"
-        app:layout_constraintTop_toBottomOf="@id/serverUrlText"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="4dp"/>
+    </com.google.android.material.appbar.AppBarLayout>
 
-    <Button
-        android:id="@+id/connectButton"
-        android:layout_width="0dp"
-        android:layout_height="56dp"
-        android:text="Connect &amp; Start"
-        android:textSize="16sp"
-        android:backgroundTint="@color/primary"
-        android:textColor="@color/text_primary"
-        app:layout_constraintTop_toBottomOf="@id/serverUrlText"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="32dp"
-        android:layout_marginHorizontal="16dp"/>
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        android:padding="24dp"
+        android:paddingBottom="100dp">
 
-    <TextView
-        android:id="@+id/helpText"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="Grant all permissions when prompted. Enable Notification Access for Companion in the next screen."
-        android:textSize="12sp"
-        android:textColor="@color/text_secondary"
-        android:gravity="center"
-        app:layout_constraintTop_toBottomOf="@id/connectButton"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="24dp"
-        android:layout_marginHorizontal="16dp"/>
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+            <TextView
+                android:id="@+id/appTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/app_name"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                android:layout_marginTop="48dp"/>
+
+            <TextView
+                android:id="@+id/statusText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Status: Checking..."
+                android:textSize="18sp"
+                android:textColor="@color/disconnected"
+                app:layout_constraintTop_toBottomOf="@+id/appTitle"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                android:layout_marginTop="24dp"/>
+
+            <TextView
+                android:id="@+id/serverUrlText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Server: Not configured"
+                android:textSize="14sp"
+                android:textColor="@color/text_secondary"
+                app:layout_constraintTop_toBottomOf="@+id/statusText"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                android:layout_marginTop="16dp"/>
+
+            <com.southpawin.companion.voice.VoiceWaveView
+                android:id="@+id/voiceWaveView"
+                android:layout_width="0dp"
+                android:layout_height="80dp"
+                android:layout_marginTop="24dp"
+                android:layout_marginHorizontal="16dp"
+                app:layout_constraintTop_toBottomOf="@+id/serverUrlText"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"/>
+
+            <com.southpawin.companion.voice.CircularTalkButton
+                android:id="@+id/voiceToggleButton"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                app:layout_constraintTop_toBottomOf="@+id/voiceWaveView"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="32dp"/>
+
+            <TextView
+                android:id="@+id/voiceStatusText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:text="Current voice: system default"
+                android:textSize="14sp"
+                android:textColor="@color/text_primary"
+                android:gravity="center"
+                app:layout_constraintTop_toBottomOf="@+id/voiceToggleButton"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                android:layout_marginTop="16dp"
+                android:layout_marginHorizontal="16dp"/>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </ScrollView>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

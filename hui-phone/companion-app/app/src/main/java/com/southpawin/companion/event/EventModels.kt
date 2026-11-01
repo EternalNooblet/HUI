@@ -76,7 +76,8 @@ data class AudioEvent(
         @SerializedName("channels") val channels: Int = 1,
         @SerializedName("duration_ms") val durationMs: Int,
         @SerializedName("data_b64") val dataBase64: String,
-        @SerializedName("sequence") val sequence: Long
+        @SerializedName("sequence") val sequence: Long,
+        @SerializedName("voice_session") val voiceSession: String? = null
     )
 }
 
@@ -118,6 +119,7 @@ sealed class Command(
                 "screen_action" -> ScreenActionCommand(requestId, payload)
                 "launch_app" -> LaunchAppCommand(requestId, payload)
                 "config" -> ConfigCommand(requestId, payload)
+                "voice_state" -> VoiceStateCommand(requestId, payload)
                 else -> UnknownCommand(requestId, commandType, payload)
             }
         }
@@ -144,6 +146,11 @@ data class ConfigCommand(
     override val payload: CommandPayload
 ) : Command(command = "config", requestId = requestId, payload = payload)
 
+data class VoiceStateCommand(
+    @SerializedName("request_id") override val requestId: String,
+    override val payload: CommandPayload
+) : Command(command = "voice_state", requestId = requestId, payload = payload)
+
 data class UnknownCommand(
     @SerializedName("request_id") override val requestId: String,
     @SerializedName("command") val originalCommand: String,
@@ -153,13 +160,15 @@ data class UnknownCommand(
 data class CommandPayload(
     @SerializedName("text") val text: String? = null,
     @SerializedName("voice") val voice: String? = null,
+    @SerializedName("pitch") val pitch: Float? = null,
     @SerializedName("priority") val priority: String? = null,
     @SerializedName("action") val action: String? = null,
     @SerializedName("package") val packageName: String? = null,
     @SerializedName("intent_extras") val intentExtras: Map<String, String>? = null,
     @SerializedName("gaze_check_interval_ms") val gazeCheckIntervalMs: Long? = null,
     @SerializedName("audio_chunk_ms") val audioChunkMs: Int? = null,
-    @SerializedName("battery_report_interval_s") val batteryReportIntervalS: Long? = null
+    @SerializedName("battery_report_interval_s") val batteryReportIntervalS: Long? = null,
+    @SerializedName("voice_session") val voiceSession: String? = null
 )
 
 // EventBus for internal communication
@@ -183,6 +192,36 @@ class EventBus {
 }
 
 // Result types for command execution
+// Voice events
+data class VoiceStartEvent(
+    @SerializedName("payload") val payload: VoiceStartPayload
+) : Event("voice_start") {
+    data class VoiceStartPayload(
+        @SerializedName("voice_session") val voiceSession: String,
+        @SerializedName("format") val format: String = "pcm16",
+        @SerializedName("sample_rate") val sampleRate: Int = 16000,
+        @SerializedName("channels") val channels: Int = 1
+    )
+}
+
+data class VoiceSendEvent(
+    @SerializedName("payload") val payload: VoiceSendPayload
+) : Event("voice_send") {
+    data class VoiceSendPayload(
+        @SerializedName("voice_session") val voiceSession: String,
+        @SerializedName("last_sequence") val lastSequence: Long,
+        @SerializedName("duration_ms") val durationMs: Long
+    )
+}
+
+data class VoiceCancelEvent(
+    @SerializedName("payload") val payload: VoiceCancelPayload
+) : Event("voice_cancel") {
+    data class VoiceCancelPayload(
+        @SerializedName("voice_session") val voiceSession: String
+    )
+}
+
 sealed class Result {
     data class Success(val data: String? = null) : Result()
     data class Failure(val error: String) : Result()

@@ -9,4 +9,6 @@
     <string name="permission_camera_rationale">Camera needed for gaze detection</string>
     <string name="permission_mic_rationale">Microphone needed for speech detection</string>
     <string name="permission_notification_rationale">Notification access needed for proactive alerts</string>
+    <string name="settings">Settings</string>
+    <string name="back">Back</string>
 </resources>
