@@ -25,6 +25,24 @@
 - WSS Port: `8081`
 - ADB TCP: `5555` (enabled via `adb tcpip 5555` over USB)
 
+## Laptop Server
+
+The server half of the pipeline lives in [`server/`](server/):
+
+| File | Purpose |
+|------|---------|
+| `companion_wss_server.py` | WSS server (:8081): events, commands, voice assembly → STT → gateway bridge → speak dispatch |
+| `companion_stt.py` | Long-lived NDJSON transcription helper (committed-venv python, faster-whisper base) |
+| `companion_mock_gateway.py` | Verified-contract gateway fixture (no model) for testing |
+| `companion_voice_matrix.py` | Full voice-in matrix runner — exit 0 iff all claims pass |
+| `server.crt` / `server.key` | TLS cert+key (loaded from the server's own directory; gitignored) |
+
+```bash
+cd hui-phone/server
+python3 companion_wss_server.py
+# Run tests: python3 companion_voice_matrix.py  (needs port 8081 free)
+```
+
 ## Build & Deploy
 
 ```bash
@@ -72,7 +90,7 @@ adb shell am start-foreground-service \
 ## Certificates
 
 Self-signed TLS cert in `app/src/main/res/raw/server_cert.crt` (embedded in app).  
-Server uses `server.crt` / `server.key` (generate with OpenSSL).
+Server uses `server.crt` / `server.key` in `server/` (generate with OpenSSL; SAN must cover the laptop IP).
 
 ## Configuration (from server welcome)
 

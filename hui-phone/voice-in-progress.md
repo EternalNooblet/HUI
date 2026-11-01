@@ -6,7 +6,7 @@ actually run and seen in this session — nothing speculative.
 ## Done + verified (both halves complete)
 
 ### Server half (phase 1) — previously done
-- /home/papa/projects/burner-phone/companion_wss_server.py — REWRITTEN in place
+- /home/papa/projects/hui/hui-phone/server/companion_wss_server.py — REWRITTEN in place
   (the live 8081 server; the hui-phone app connects there). Adds:
   - voice_start / audio(+voice_session) / voice_send / voice_cancel handling;
     audio WITHOUT voice_session keeps the old queue path untouched.
@@ -24,14 +24,14 @@ actually run and seen in this session — nothing speculative.
     resumes with stored id after every drop, prompt.submit {session_id,text,queued:true}
     NO submission_id, collects message.delta/complete → one reply, gateway.ping
     on 15 s silence, one retry on drop. websockets 15 accepted via kwargs (ssl= works).
-- /home/papa/projects/burner-phone/companion_stt.py — long-lived NDJSON helper
+- /home/papa/projects/hui/hui-phone/server/companion_stt.py — long-lived NDJSON helper
   run with the COMMITTED-venv python (resolved from ~/.hermes/installs/*/facts.json
   → packages.venv → bin/python3). Imports tools.transcription_tools._transcribe_local,
   model name read from stt.local.model (=base). Never pip-installs, never a 2nd model.
-- /home/papa/projects/burner-phone/companion_mock_gateway.py — verified-contract fixture, NO model.
+- /home/papa/projects/hui/hui-phone/server/companion_mock_gateway.py — verified-contract fixture, NO model.
   Modes ok|drop_after_submit(drops FIRST submit only — bridge retries once)|reject,
   shapes a|flat|msg; sessions live across connections; MOCK_FRAME_LOG = framing oracle.
-- /home/papa/projects/burner-phone/companion_voice_matrix.py — full matrix runner.
+- /home/papa/projects/hui/hui-phone/server/companion_voice_matrix.py — full matrix runner.
   Exit 0 iff all claims pass.
 - companion_wss_server.py EDITED (bridge): GATEWAY_WS_URL env override at dial time;
   GATEWAY_FRAME_LOG raw-frame logger (default .voice_tmp/gateway_frames.jsonl — the
@@ -130,7 +130,7 @@ and the long-wait re-run below are SUPERSEDED — do not do them.
 - Phone: adb YOUR_PHONE_IP:5555 connected; app installed; both WSS connections active
 
 ## Phase-1 matrix — DONE (2026-10-31)
-Files (all at /home/papa/projects/burner-phone/):
+Files (all at /home/papa/projects/hui/hui-phone/server/):
 - companion_mock_gateway.py NEW — verified-contract fixture, NO model.
 - companion_voice_matrix.py NEW — full matrix runner. Exit 0 iff all claims pass.
 - companion_wss_server.py EDITED: GATEWAY_WS_URL override, GATEWAY_FRAME_LOG, permissive extractor.

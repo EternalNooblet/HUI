@@ -21,7 +21,7 @@ Lightweight Android app that replaces ADB polling with push-based events.
 ## Build
 
 ```bash
-cd /home/papa/burner-phone/companion-app
+cd ~/projects/hui/hui-phone/companion-app
 ./gradlew assembleRelease
 # Output: app/build/outputs/apk/release/app-release.apk
 ```
