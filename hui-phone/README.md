@@ -56,7 +56,7 @@ adb shell am start-foreground-service \
 |------|---------|
 | `CompanionService.kt` | Foreground service orchestration (START_STICKY) |
 | `Transport.kt` | WSS client with TLS (OkHttp, self-signed cert pinning) |
-| `CommandExecutor.kt` | Executes commands: speak, screen_action, launch_app, config |
+| `CommandExecutor.kt` | Executes commands: speak (honors `voice` locale code, e.g. "fr-FR"), screen_action, launch_app, config (persists `voice` via `voice` field) |
 | `BatteryMonitor.kt` | Battery level, charging state (BroadcastReceiver + 60s poll) |
 | `ScreenMonitor.kt` | Screen ON/OFF/LOCKED (PowerManager + KeyguardManager) |
 | `AttentionDetector.kt` | Gaze detection stub (2s tick log only) |
