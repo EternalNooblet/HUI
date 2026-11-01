@@ -23,6 +23,14 @@ hui-phone/companion-app/build/reports/
 server.crt
 server.key
 
+# server evidence/logs, never committed
+hui-phone/server/.voice_tmp/
+hui-phone/server/*.log
+
+# python bytecode, never committed
+__pycache__/
+*.pyc
+
 # generated credentials + session notes, never committed
 last-token.txt
 REFERENCE.md

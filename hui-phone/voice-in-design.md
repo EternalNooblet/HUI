@@ -14,7 +14,7 @@ Status: **IMPLEMENTED** — Kotlin app half + server half both complete and test
 ## What already exists (verified in code — reuse, don't rebuild)
 - `event/EventModels.kt` already has `AudioEvent` ("Audio chunk for STT"): pcm16, 16 kHz, mono, `data_b64`, `sequence`. **Added `voice_session` nullable field.**
 - Mic capture proven path: `AttentionDetector.kt.bak` uses `MediaRecorder.AudioSource.VOICE_COMMUNICATION` + `AudioRecord` reading raw PCM chunks. Reused that pattern; do NOT use `MediaRecorder` itself (compressed, won't chunk-stream).
-- `companion_wss_server.py` (burner-phone, 8081) already accepts/queues `audio` events and config has `audio_chunk_ms: 100`. **Consumer implemented: assembly → STT → gateway bridge → speak dispatch.**
+- `companion_wss_server.py` (now `hui-phone/server/`, 8081) already accepts/queues `audio` events and config has `audio_chunk_ms: 100`. **Consumer implemented: assembly → STT → gateway bridge → speak dispatch.**
 - `RECORD_AUDIO` is already requested in MainActivity's permission flow. No new permission gate.
 - `CommandExecutor.kt` already handles `speak` (honors `voice` locale, `pitch`). Reused for reply delivery.
 

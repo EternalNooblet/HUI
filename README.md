@@ -28,8 +28,11 @@ cd hui-cli
 ./builds/hui -host <gateway> -token <blob>
 ```
 
-### hui-phone (Android Companion App)
+### hui-phone (Android Companion App + laptop server)
 ```bash
+cd hui-phone/server
+python3 companion_wss_server.py   # WSS :8081 — the app connects here
+
 cd hui-phone/companion-app
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
 export ANDROID_HOME=/home/papa/Android/Sdk
