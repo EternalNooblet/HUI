@@ -98,4 +98,4 @@ Server uses `server.crt` / `server.key` (generate with OpenSSL).
 
 ## License
 
-MIT
+GPL-3.0 — see the repo-root `LICENSE` (covers all code in this monorepo, including hui-phone)
