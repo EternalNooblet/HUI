@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+        android:background="@color/surface">
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorPrimary"
+            app:titleTextColor="@color/text_primary"
+            app:navigationIcon="@drawable/ic_arrow_back"
+            app:navigationContentDescription="@string/back"/>
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="32dp">
+
+            <TextView
+                android:id="@+id/voiceTitleText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Voice Settings"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:layout_marginBottom="16dp"/>
+
+            <TextView
+                android:id="@+id/voiceStatusText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Current voice: system default"
+                android:textSize="16sp"
+                android:textColor="@color/text_primary"
+                android:layout_marginBottom="24dp"/>
+
+            <Button
+                android:id="@+id/voiceEnUsButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="en-US - English (US)"
+                android:textSize="16sp"
+                android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/voiceEnGbButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="en-GB - English (UK)"
+                android:textSize="16sp"
+                android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/voiceEnInButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="en-IN - English (India)"
+                android:textSize="16sp"
+                android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/voiceDeDeButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="de-DE - German"
+                android:textSize="16sp"
+                android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/voiceFrFrButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="fr-FR - French"
+                android:textSize="16sp"
+                android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/voiceEsEsButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="es-ES - Spanish (Spain)"
+                android:textSize="16sp"
+                android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/voiceEsUsButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="es-US - Spanish (US)"
+                android:textSize="16sp"
+                android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/voiceItItButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="it-IT - Italian"
+                android:textSize="16sp"
+                android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/voicePtBrButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="pt-BR - Portuguese (Brazil)"
+                android:textSize="16sp"
+                android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/voiceRoRoButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="ro-RO - Romanian"
+                android:textSize="16sp"
+                android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/voiceRuRuButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="ru-RU - Russian"
+                android:textSize="16sp"
+                android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/voicePlPlButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="pl-PL - Polish"
+                android:textSize="16sp"
+                android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/voiceCsCzButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="cs-CZ - Czech"
+                android:textSize="16sp"
+                android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/voiceZhCnButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="zh-CN - Chinese"
+                android:textSize="16sp"/>
+
+        </LinearLayout>
+    </ScrollView>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

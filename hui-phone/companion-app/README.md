@@ -188,4 +188,4 @@ Placeholder model included for build verification.
 
 ## License
 
-MIT - Part of burner-phone project
+GPL-3.0 — see the repo-root `LICENSE` (covers all code in this monorepo, including this app)

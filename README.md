@@ -50,3 +50,9 @@ export ANDROID_HOME=/home/papa/Android/Sdk
 
 > **Separate by default.** Each component owns its deps, build, config, and runtime.  
 > Merge only what you need later (shared tooling, CI, docs).
+
+---
+
+## License
+
+GPL-3.0 — the repo-root `LICENSE` applies to all code in both `hui-cli/` and `hui-phone/`.
