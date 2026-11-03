@@ -120,6 +120,7 @@ sealed class Command(
                 "launch_app" -> LaunchAppCommand(requestId, payload)
                 "config" -> ConfigCommand(requestId, payload)
                 "voice_state" -> VoiceStateCommand(requestId, payload)
+                "chat_reply" -> ChatReplyCommand(requestId, payload)
                 else -> UnknownCommand(requestId, commandType, payload)
             }
         }
@@ -150,6 +151,12 @@ data class VoiceStateCommand(
     @SerializedName("request_id") override val requestId: String,
     override val payload: CommandPayload
 ) : Command(command = "voice_state", requestId = requestId, payload = payload)
+
+// Chat reply command from server (text bubble)
+data class ChatReplyCommand(
+    @SerializedName("request_id") override val requestId: String,
+    override val payload: CommandPayload
+) : Command(command = "chat_reply", requestId = requestId, payload = payload)
 
 data class UnknownCommand(
     @SerializedName("request_id") override val requestId: String,
@@ -219,6 +226,16 @@ data class VoiceCancelEvent(
 ) : Event("voice_cancel") {
     data class VoiceCancelPayload(
         @SerializedName("voice_session") val voiceSession: String
+    )
+}
+
+// Chat event (text message from user)
+data class ChatEvent(
+    @SerializedName("payload") val payload: ChatPayload
+) : Event("chat") {
+    data class ChatPayload(
+        @SerializedName("text") val text: String,
+        @SerializedName("voice_session") val voiceSession: String? = null
     )
 }
 

@@ -46,6 +46,12 @@ REPLY_TIMEOUT_S = 180
 GATEWAY_WS_URL = 'ws://10.0.0.126:9119/api/ws'  # runtime: os.environ['GATEWAY_WS_URL'] wins
 MINT_SCRIPT = os.path.expanduser('~/projects/hui/hui-cli/tools/mint_access_token.py')
 HOTWORDS = ['Hermes', 'HUI', 'phone']  # → welcome config + whisper initial_prompt
+TTS_VOICES = [
+    'en-US', 'en-GB', 'en-IN',
+    'de-DE', 'fr-FR', 'es-ES', 'es-US',
+    'it-IT', 'pt-BR', 'ro-RO', 'ru-RU',
+    'pl-PL', 'cs-CZ', 'zh-CN'
+]  # exposed in welcome config for client voice choice
 
 voice_sessions = {}   # (device_id, voice_session) -> session dict
 VOICE_TMP = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.voice_tmp')
@@ -323,6 +329,34 @@ def _write_wav(name, pcm, rate):
         w.writeframes(pcm)
     return path
 
+async def chat_handle(device_id, event, ws):
+    payload = event.get('payload', {})
+    text = payload.get('text', '').strip()
+    voice_session = payload.get('voice_session')
+    if not text:
+        return
+    logger.info(f"💬 chat from {device_id}: {text[:80]} (session={voice_session})")
+    
+    # Use the same bridge to Hermes gateway
+    global bridge
+    if bridge is None:
+        bridge = GatewayBridge()
+    try:
+        reply = await bridge.prompt_reply(text)
+    except Exception as e:
+        logger.error(f"bridge failed for chat: {e}")
+        await send_voice_command(ws, device_id, 'chat_reply', {'text': f'Error: {e}', 'voice_session': voice_session})
+        return
+
+    reply = ' '.join(reply.split())
+    if not reply:
+        await send_voice_command(ws, device_id, 'chat_reply', {'text': '...', 'voice_session': voice_session})
+        return
+    
+    await send_voice_command(ws, device_id, 'chat_reply', {'text': reply, 'voice_session': voice_session})
+    logger.info(f"✅ chat done for {voice_session}: {reply[:80]}")
+
+
 async def voice_handle(device_id, event, ws):
     etype = event['type']
     payload = event.get('payload', {})
@@ -462,6 +496,9 @@ async def handle_event(device_id: str, event: dict, ws=None):
     if event_type == 'audio' and payload.get('voice_session'):
         await voice_handle(device_id, event, ws)
         return
+    if event_type == 'chat':
+        await chat_handle(device_id, event, ws)
+        return
     logger.info(f"Event from {device_id}: {event_type}")
     if event_type == 'attention' and payload.get('addressing'):
         logger.info(f"🎯 ATTENTION DETECTED from {device_id}: confidence={payload.get('confidence')}")
@@ -503,7 +540,8 @@ async def ws_handler(request):
                 'com.android.mms', 'com.google.android.gm',
                 'com.microsoft.office.outlook', 'org.telegram.messenger'
             ],
-            'hotwords': HOTWORDS
+            'hotwords': HOTWORDS,
+            'tts_voices': TTS_VOICES
         }
     })
 
