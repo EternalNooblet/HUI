@@ -52,7 +52,7 @@ object VoiceUi {
 
     fun attach(
         act: AppCompatActivity,
-        status: TextView,
+        status: TextView?,
         wave: VoiceWaveView,
         btn: CircularTalkButton,
         chatRv: androidx.recyclerview.widget.RecyclerView,

@@ -3,7 +3,6 @@ package com.southpawin.companion.voice
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.Rect
 import android.util.AttributeSet
 import android.view.GestureDetector
@@ -42,16 +41,6 @@ class CircularTalkButton @JvmOverloads constructor(
     private val accentPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 3f * resources.displayMetrics.density
-    }
-    private val iconPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 2.5f * resources.displayMetrics.density
-        color = 0xFFFFFFFF.toInt()
-        strokeCap = Paint.Cap.ROUND
-    }
-    private val iconFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-        color = 0xFFFFFFFF.toInt()
     }
     private val textRect = Rect()
     private var isPressed = false
@@ -112,9 +101,6 @@ class CircularTalkButton @JvmOverloads constructor(
             canvas.drawCircle(cx, cy, rippleRadius.coerceAtMost(innerRadius), ripplePaint)
         }
 
-        // Draw mode icon (mic or chat bubble)
-        drawModeIcon(canvas, cx, cy, radius * 0.35f)
-
         // Draw text centered
         textPaint.getTextBounds(buttonText, 0, buttonText.length, textRect)
         val textX = cx
@@ -123,58 +109,6 @@ class CircularTalkButton @JvmOverloads constructor(
 
         // Draw swipe hints (subtle arrows on sides)
         drawSwipeHints(canvas, cx, cy, radius)
-    }
-
-    private fun drawModeIcon(canvas: Canvas, cx: Float, cy: Float, iconSize: Float) {
-        val halfSize = iconSize / 2f
-        val strokeWidth = iconPaint.strokeWidth
-
-        when (currentMode) {
-            TalkMode.VOICE -> {
-                // Draw microphone icon
-                val micRect = android.graphics.RectF(
-                    cx - halfSize, cy - halfSize,
-                    cx + halfSize, cy + halfSize * 0.6f
-                )
-                // Mic body
-                canvas.drawRoundRect(micRect, halfSize * 0.3f, halfSize * 0.3f, iconPaint)
-                // Mic stand
-                val standTop = cy + halfSize * 0.6f
-                val standBottom = cy + halfSize * 1.1f
-                canvas.drawLine(cx, standTop, cx, standBottom, iconPaint)
-                // Mic base
-                canvas.drawLine(cx - halfSize * 0.6f, standBottom, cx + halfSize * 0.6f, standBottom, iconPaint)
-            }
-            TalkMode.CHAT -> {
-                // Draw chat bubble icon
-                val bubblePath = Path()
-                val bubbleWidth = halfSize * 1.6f
-                val bubbleHeight = halfSize * 1.2f
-                val tailHeight = halfSize * 0.5f
-                val cornerRadius = halfSize * 0.2f
-
-                bubblePath.moveTo(cx - bubbleWidth / 2f + cornerRadius, cy - bubbleHeight / 2f)
-                bubblePath.lineTo(cx + bubbleWidth / 2f - cornerRadius, cy - bubbleHeight / 2f)
-                bubblePath.quadTo(cx + bubbleWidth / 2f, cy - bubbleHeight / 2f,
-                                cx + bubbleWidth / 2f, cy - bubbleHeight / 2f + cornerRadius)
-                bubblePath.lineTo(cx + bubbleWidth / 2f, cy + bubbleHeight / 2f - cornerRadius - tailHeight)
-                bubblePath.quadTo(cx + bubbleWidth / 2f, cy + bubbleHeight / 2f - tailHeight,
-                                cx + bubbleWidth / 2f - cornerRadius, cy + bubbleHeight / 2f - tailHeight)
-                // Tail
-                bubblePath.lineTo(cx + halfSize * 0.3f, cy + bubbleHeight / 2f)
-                bubblePath.lineTo(cx, cy + bubbleHeight / 2f + tailHeight)
-                bubblePath.lineTo(cx - halfSize * 0.2f, cy + bubbleHeight / 2f)
-                bubblePath.lineTo(cx - bubbleWidth / 2f + cornerRadius, cy + bubbleHeight / 2f - tailHeight)
-                bubblePath.quadTo(cx - bubbleWidth / 2f, cy + bubbleHeight / 2f - tailHeight,
-                                cx - bubbleWidth / 2f, cy + bubbleHeight / 2f - cornerRadius - tailHeight)
-                bubblePath.lineTo(cx - bubbleWidth / 2f, cy - bubbleHeight / 2f + cornerRadius)
-                bubblePath.quadTo(cx - bubbleWidth / 2f, cy - bubbleHeight / 2f,
-                                cx - bubbleWidth / 2f + cornerRadius, cy - bubbleHeight / 2f)
-                bubblePath.close()
-
-                canvas.drawPath(bubblePath, iconPaint)
-            }
-        }
     }
 
     private fun drawSwipeHints(canvas: Canvas, cx: Float, cy: Float, radius: Float) {

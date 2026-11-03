@@ -1,7 +1,7 @@
 # hui-phone User-Ready v1 — Dual-Mode Voice/Text Chat Plan
 
 **Created:** 2026-11-02  
-**Status:** APPROVED — ready for implementation
+**Status:** **DONE** — implemented, built, tested on device (LG K30, Android 8.1)
 
 ---
 
@@ -31,70 +31,71 @@
 
 ---
 
-## Implementation Phases
+## Implementation Status
 
-### Phase 1: Data & Protocol Foundation
-- [ ] Room schema + DAO + Repository for `Message` (user/assistant, text, timestamp, voice_session)
-- [ ] Add `chat` event + `chat_reply` command to `EventModels.kt` (both directions)
-- [ ] Server: handle `chat` event → forward to Hermes `prompt.submit` → emit `chat_reply` to originating socket
-- [ ] Server: add `tts_voices` to welcome config (propagate from Hermes TTS voices or static list)
+### Phase 1: Data & Protocol Foundation ✅
+- [x] Room schema + DAO + Repository for `Message`
+- [x] Add `chat` event + `chat_reply` command to `EventModels.kt`
+- [x] Server: handle `chat` event → forward to Hermes `prompt.submit` → emit `chat_reply`
+- [x] Server: add `tts_voices` to welcome config
 
-### Phase 2: Dual-Mode Button & Mode Switching
-- [ ] Extend `CircularTalkButton`: swipe detection (left/right), mode state (VOICE/CHAT), icon swap (mic ↔ chat bubble), subtle side hints
-- [ ] Mode switch logic: Voice→Chat cancels STT (emit `voice_cancel`); Chat→Voice preserves draft text
-- [ ] Connection accent ring (color driven by `Transport` connection state)
+### Phase 2: Dual-Mode Button & Mode Switching ✅
+- [x] `CircularTalkButton`: swipe detection (left/right), mode state (VOICE/CHAT), subtle side hints
+- [x] Mode switch logic: Voice→Chat cancels STT (`voice_cancel`); Chat→Voice preserves draft text
+- [x] Connection accent ring (color driven by `Transport` connection state)
 
-### Phase 3: Text Chat UI
-- [ ] `ChatListAdapter` + `RecyclerView` (message bubbles, user/assistant styling, timestamps optional)
-- [ ] Input field at bottom: multi-line, IME_ACTION_SEND → send, clears on send, persists draft on mode switch
-- [ ] Wire send: button tap / Enter → `chat` event with current `voice_session` + text
-- [ ] Wire receive: `chat_reply` → append to DB → UI updates via Flow
+### Phase 3: Text Chat UI ✅
+- [x] `ChatListAdapter` + `RecyclerView` (message bubbles, user/assistant styling)
+- [x] Input field at bottom: multi-line, IME_ACTION_SEND → send, clears on send, persists draft on mode switch
+- [x] Wire send: button tap / Enter → `chat` event with current `voice_session` + text
+- [x] Wire receive: `chat_reply` → append to DB → UI updates via Flow
 
-### Phase 4: History & Persistence
-- [ ] Load history on app start (per `voice_session` or global)
-- [ ] Survives process death / phone restart (Room handles)
-- [ ] Clear history action (defer to v2 settings)
+### Phase 4: History & Persistence ✅
+- [x] Load history on app start (per `voice_session`)
+- [x] Survives process death / phone restart (Room handles)
+- [x] Clear history action deferred to v2
 
-### Phase 5: Voice Choice Setting
-- [ ] Settings entry point (gear icon top-right? long-press button? — pick one)
-- [ ] Voice list from welcome config → SharedPreferences persistence
-- [ ] Apply selected voice to `speak` commands (already supported in `CommandExecutor`)
+### Phase 5: Voice Choice Setting ⏸️ (deferred)
+- Settings entry point not added in v1
+- Voice list from welcome config available
+- `CommandExecutor` already supports voice selection
 
-### Phase 6: Polish & Error Handling
-- [ ] Toast + boop on send/STT/TTS/network failures
-- [ ] Subtle connection accent (already in Phase 2)
-- [ ] Quick animations on mode switch (200ms)
-- [ ] API 27 verification: all Views compile/run on Android 8.1
+### Phase 6: Polish & Error Handling ✅
+- [x] Toast + boop on send/STT/TTS/network failures
+- [x] Subtle connection accent
+- [x] Quick animations on mode switch
+- [x] API 27 verified: compiles/runs on Android 8.1
 
-### Phase 7: Build & Device Test
-- [ ] `./gradlew assembleRelease` → sign → `adb install -r`
-- [ ] Grant permissions, start service
-- [ ] End-to-end: voice mode (STT→TTS), text mode (bubbles), mode switching, history survive kill/restart, voice setting persists
+### Phase 7: Build & Device Test ✅
+- [x] `./gradlew assembleRelease` → sign → `adb install -r`
+- [x] Grant permissions, start service
+- [x] End-to-end: voice mode (STT→TTS), text mode (bubbles), mode switching, history survive kill/restart
 
 ---
 
-## Open Decisions (quick picks needed)
+## Changes from Plan
 
-1. **Settings entry** — gear icon top-right? Long-press button? Three-dot menu?
-2. **Clear history** — in v1 or defer to v2 settings page?
-3. **Timestamp visibility** — show on bubbles? Long-press to reveal? Hidden?
-4. **Input field max lines** — single-line expandable? Fixed 4-line max?
-5. **Empty state** — "No messages yet. Start a conversation." or blank?
+- **No icons** on circular button (only "Talk"/"Send" text) — per user feedback
+- **No settings entry** in v1 — deferred
+- **TLS fix**: Added `network_security_config.xml` with `src="user"` for self-signed cert trust on Android 8.1
+- **Gradle**: Migrated to 8.9 + `kapt` for Room
 
 ---
 
 ## Risk Flags
-- **Top-center button + bottom input** = unusual reach on tall phones. One-handed use may suffer. User said "try it" — we'll build it, they'll feel it.
-- **Swipe on 80dp circle** — even with padding, may need generous `touchSlop` and visual feedback.
-- **API 27** — `RecyclerView`, `Room`, `ConstraintLayout`, `GestureDetector` all fine. Custom button View already exists.
-- **Server schema change** — `companion_wss_server.py` needs `chat`/`chat_reply` handling + `tts_voices` in welcome. Low risk.
+- **Top-center button + bottom input** = unusual reach on tall phones. One-handed use may suffer.
+- **Swipe on 80dp circle** — even with padding, needs generous `touchSlop` and visual feedback.
+- **API 27** — `RecyclerView`, `Room`, `ConstraintLayout`, `GestureDetector` all fine.
+- **Server schema change** — `companion_wss_server.py` handles `chat`/`chat_reply` + `tts_voices`. Low risk.
+- **Connection stability**: WebSocket drops after ~10s (ping/keepalive mismatch between OkHttp and aiohttp). Needs investigation.
 
 ---
 
-## Estimated Effort
+## Estimated Effort (actual)
 - Phases 1–3: core feature (~3–4 focused sessions)
 - Phases 4–6: polish (~1–2 sessions)
 - Phase 7: device verification (~1 session)
+- TLS debugging (~1 session)
 
 ---
 
