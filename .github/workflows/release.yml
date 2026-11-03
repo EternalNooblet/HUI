@@ -149,8 +149,6 @@ jobs:
         run: |
           ls -lh app/build/outputs/apk/release/*.apk app/build/outputs/bundle/release/*.aab
           "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
-          sha256sum app/build/outputs/apk/release/app-release.apk app/build/outputs/bundle/release/app-release.aab > SHA256SUMS.txt
-          cat SHA256SUMS.txt
 
       - name: Publish Android assets
         if: github.ref_type == 'tag'
@@ -161,6 +159,8 @@ jobs:
           NAME="${TAG#refs/tags/}"
           cp app/build/outputs/apk/release/app-release.apk "hui-phone-${NAME}.apk"
           cp app/build/outputs/bundle/release/app-release.aab "hui-phone-${NAME}.aab"
+          sha256sum "hui-phone-${NAME}.apk" "hui-phone-${NAME}.aab" > SHA256SUMS.txt
+          cat SHA256SUMS.txt
           gh release upload "$NAME" "hui-phone-${NAME}.apk" "hui-phone-${NAME}.aab" SHA256SUMS.txt --clobber
           echo "Uploaded hui-phone-${NAME}.apk/.aab to release $NAME"
 
