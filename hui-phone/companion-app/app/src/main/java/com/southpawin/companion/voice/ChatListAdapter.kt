@@ -49,12 +49,31 @@ class ChatListAdapter(
             holder.bubbleContainer.layoutParams.height
         )
         lp.gravity = if (isUser) Gravity.END else Gravity.START
+        // Vertical spacing (px, user-specified): 2px same-author,
+        // 4px cross-author. Top margin on each item except the first row.
+        val dens = holder.itemView.resources.displayMetrics.density
+        lp.topMargin = when {
+            position == 0 -> (8 * dens).toInt()
+            getItem(position - 1).role == message.role -> (2 * dens).toInt()
+            else -> (4 * dens).toInt()
+        }
+        lp.bottomMargin = (2 * dens).toInt()
         holder.bubbleContainer.layoutParams = lp
 
         // Text color
         holder.messageText.setTextColor(
             ContextCompat.getColor(context, if (isUser) R.color.text_on_primary else R.color.text_primary)
         )
+        // Timestamp per-bubble (WCAG AA). User bubble #1D4ED8 takes
+        // timestamp_user #DBEAFE (5.49:1); assistant #1E1E1E takes
+        // timestamp_assistant #A1A1AA (6.50:1). No alpha — alpha was the bug.
+        holder.timestampText.setTextColor(
+            ContextCompat.getColor(
+                context,
+                if (isUser) R.color.timestamp_user else R.color.timestamp_assistant
+            )
+        )
+        holder.timestampText.alpha = 1f
 
         // Timestamp
         val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())

@@ -9,7 +9,6 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="16dp"
-        android:layout_marginVertical="4dp"
         android:maxWidth="300dp"
         android:orientation="vertical"
         android:paddingHorizontal="16dp"
@@ -29,9 +28,8 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="12:00"
-            android:textSize="10sp"
-            android:textColor="@color/text_secondary"
-            android:alpha="0.7" />
+            android:textSize="11sp"
+            android:textColor="@color/timestamp_assistant" />
 
     </LinearLayout>
 

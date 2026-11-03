@@ -14,6 +14,9 @@ import com.southpawin.companion.event.VoiceCancelEvent
 import com.southpawin.companion.event.VoiceSendEvent
 import com.southpawin.companion.event.VoiceStartEvent
 import com.southpawin.companion.event.ChatEvent
+import com.southpawin.companion.db.ChatSessionSummary
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import com.southpawin.companion.transport.CommandExecutor
 import com.southpawin.companion.transport.Transport
 import com.southpawin.companion.ui.PromptInputLayout
@@ -40,6 +43,7 @@ object VoiceUi {
     private val THINKING_TIMEOUT_MS = 90_000L
 
     private var isListening = false
+    private var loadJob: Job? = null
     private var voiceInput: VoiceInput? = null
     private var currentVoiceSession: String? = null
     private var chatAdapter: ChatListAdapter? = null
@@ -85,8 +89,9 @@ object VoiceUi {
     private fun loadMessages() {
         val session = currentVoiceSession ?: VoiceInput.generateSessionId()
         currentVoiceSession = session
+        loadJob?.cancel()
         val scope = CoroutineScope(Dispatchers.Main)
-        scope.launch {
+        loadJob = scope.launch {
             messageRepository?.observeSessionMessages(session)?.collect { messages ->
                 chatAdapter?.submitList(messages.map { entity ->
                     com.southpawin.companion.voice.ChatMessage(
@@ -101,6 +106,27 @@ object VoiceUi {
             }
         }
     }
+
+    /** Switch the chat window to an existing session (prompt-kit sidebar tap). */
+    fun switchTo(sessionId: String) {
+        if (sessionId == currentVoiceSession) return
+        currentVoiceSession = sessionId
+        chatAdapter?.submitList(emptyList())
+        loadMessages()
+    }
+
+    /** Start a fresh chat session (prompt-kit "New Chat" button). */
+    fun newChat() {
+        currentVoiceSession = VoiceInput.generateSessionId()
+        chatAdapter?.submitList(emptyList())
+        loadMessages()
+    }
+
+    fun currentSessionId(): String? = currentVoiceSession
+
+    /** All chat sessions for the sidebar list, newest first. */
+    fun observeSessions(): Flow<List<ChatSessionSummary>> =
+        messageRepository?.observeSessions() ?: kotlinx.coroutines.flow.flowOf(emptyList())
 
     /** Toggle voice recording on/off. When stopped, transcript is inserted into the text input. */
     fun toggleVoiceRecording(eventBus: EventBus, transport: Transport) {

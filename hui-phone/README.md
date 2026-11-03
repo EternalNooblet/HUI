@@ -32,7 +32,7 @@ The server half of the pipeline lives in [`server/`](server/):
 | File | Purpose |
 |------|---------|
 | `companion_wss_server.py` | WSS server (:8081): events, commands, voice assembly → STT → gateway bridge → speak dispatch |
-| `companion_stt.py` | Long-lived NDJSON transcription helper (committed-venv python, faster-whisper base) |
+| (in-process STT) | STT runs in-process via Hermes `tools.transcription_tools` (faster-whisper `base`, one cached model) — no helper process |
 | `companion_mock_gateway.py` | Verified-contract gateway fixture (no model) for testing |
 | `companion_voice_matrix.py` | Full voice-in matrix runner — exit 0 iff all claims pass |
 | `server.crt` / `server.key` | TLS cert+key (loaded from the server's own directory; gitignored) |

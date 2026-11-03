@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- prompt-kit Sidebar: Header (app name + search) + New Chat + grouped history -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="300dp"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/pk_background">
+
+    <!-- SidebarHeader: app mark + search -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/sidebarAppName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="HUI Phone"
+            android:textSize="16sp"
+            android:textColor="@color/pk_foreground" />
+
+        <ImageButton
+            android:id="@+id/sidebarSearchBtn"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:contentDescription="Search chats"
+            android:src="@drawable/ic_search"
+            android:background="?attr/selectableItemBackgroundBorderless" />
+    </LinearLayout>
+
+    <!-- Search field (toggles, filters sessions) -->
+    <EditText
+        android:id="@+id/sessionSearchInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="8dp"
+        android:hint="Search chats"
+        android:textSize="14sp"
+        android:textColor="@color/pk_foreground"
+        android:textColorHint="@color/pk_muted_foreground"
+        android:visibility="gone" />
+
+    <!-- New Chat (outline, full width, PlusIcon) -->
+    <Button
+        android:id="@+id/newChatBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="8dp"
+        android:text="New Chat"
+        android:textSize="14sp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/sessionRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingBottom="16dp" />
+</LinearLayout>

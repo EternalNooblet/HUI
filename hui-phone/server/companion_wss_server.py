@@ -2,10 +2,17 @@
 """
 Secure WebSocket Server (WSS) for Companion App — with the voice-in loop.
 
+SINGLE PROCESS (2026-11-03): all server-side work lives in this one
+process. WSS/TLS, voice assembly, in-process STT (Hermes tools.* via the
+committed-venv python this process already runs on), in-process token
+minting from dashboard.basic_auth, and the hermes serve bridge
+(:9119) are all the same OS process. No STT subprocess, no mint
+subprocess, no companion_stt.py.
+
 Voice-in design (hui-phone/voice-in-design.md, 2026-10-31):
   phone tap → stream pcm16 chunks (existing `audio` event + voice_session)
   → server assembles per (device_id, voice_session) keyed by sequence
-  → STT in Hermes's committed venv (ONE model, never a second copy)
+  → STT in-process (ONE cached model, never a second copy)
   → prompt to hermes serve :9119 as a mini-client (verified gateway contract)
   → reply arrives as message.* stream → ONE final `speak` command back.
 
@@ -46,7 +53,7 @@ MAX_COVER_MS = 60_000       # hard cap; phone enforces, server truncates → fai
 STT_TIMEOUT_S = 90
 REPLY_TIMEOUT_S = 180
 GATEWAY_WS_URL = 'ws://10.0.0.126:9119/api/ws'  # runtime: os.environ['GATEWAY_WS_URL'] wins
-MINT_SCRIPT = os.path.expanduser('~/projects/hui/hui-cli/tools/mint_access_token.py')
+TOKEN_TTL_SECONDS = 12 * 3600  # matches mint_access_token.py default
 
 # ------------------------------------------------------------------- auth ---
 # Phone auth (option C: per-token revocation). The QR token is the same
@@ -63,8 +70,8 @@ HERMES_CFG = os.path.expanduser('~/.hermes/config.yaml')
 REVOKED_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'revoked_tokens.json')
 AUTH_REQUIRED = os.environ.get('COMPANION_AUTH', 'on').lower() not in ('off', '0', 'false', 'no')
 
-def _basic_auth_secret():
-    """dashboard.basic_auth secret from ~/.hermes/config.yaml, no PyYAML dep."""
+def _basic_auth_credentials():
+    """(username, secret_bytes) from ~/.hermes/config.yaml, no PyYAML dep."""
     user = raw = None
     in_dashboard = in_basic = False
     try:
@@ -86,17 +93,36 @@ def _basic_auth_secret():
                     elif key == 'secret':
                         raw = val
     except OSError:
-        return None
-    if not raw:
-        return None
+        return None, None
+    if not raw or not user:
+        return None, None
     for dec in (base64.b64decode, bytes.fromhex):
         try:
             d = dec(raw)
             if len(d) >= 16:
-                return d
+                return user, d
         except Exception:
             pass
-    return raw.encode('utf-8')
+    return user, raw.encode('utf-8')
+
+def _basic_auth_secret():
+    """dashboard.basic_auth secret from ~/.hermes/config.yaml, no PyYAML dep."""
+    return _basic_auth_credentials()[1]
+
+def _mint_access_token() -> str:
+    """In-process mint (mirrors hui-cli/tools/mint_access_token.py):
+    base64url(compact-JSON payload + HMAC-SHA256(payload, secret)),
+    kind=access, sub=username, exp=now+TOKEN_TTL_SECONDS, unique jti."""
+    user, secret = _basic_auth_credentials()
+    if not user or secret is None:
+        raise BridgeFailed('token mint failed: check dashboard.basic_auth in config.yaml')
+    ttl = int(os.environ.get("TOKEN_TTL_SECONDS", str(TOKEN_TTL_SECONDS)))
+    exp = int(time.time()) + max(60, ttl)
+    payload = json.dumps({"sub": user, "kind": "access", "exp": exp,
+                          "jti": uuid.uuid4().hex},
+                         separators=(",", ":")).encode()
+    sig = hmac.new(secret, payload, hashlib.sha256).digest()
+    return base64.b64encode(payload + sig).decode()
 
 def _load_revoked():
     try:
@@ -179,18 +205,6 @@ def _gwlog(direction, raw):
     except OSError:
         pass
 
-def resolve_committed_python():
-    """Hermes's committed env per ~/.hermes/installs/<hash>/facts.json → packages.venv."""
-    for facts in sorted(glob.glob(os.path.expanduser('~/.hermes/installs/*/facts.json'))):
-        try:
-            with open(facts) as f:
-                env = json.load(f)['packages']['venv']['environment']
-            py = os.path.join(env, 'bin', 'python3')
-            if os.path.exists(py):
-                return py
-        except (KeyError, ValueError):
-            continue
-    return None
 
 class BridgeDropped(Exception):
     """The bridge connection died — caller resumes + retries once."""
@@ -246,13 +260,7 @@ class GatewayBridge:
     async def dial(self):
         if self.ws is not None:
             return
-        proc = await asyncio.create_subprocess_exec(
-            sys.executable, MINT_SCRIPT,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-        out, _ = await asyncio.wait_for(proc.communicate(), 20)
-        if proc.returncode != 0:
-            raise BridgeFailed('token mint failed: check dashboard.basic_auth in config.yaml')
-        token = out.decode().strip()
+        token = _mint_access_token()
         url = (os.environ.get('GATEWAY_WS_URL') or GATEWAY_WS_URL) + '?' + \
             urllib.parse.urlencode({'token': token})
         # No protocol ping: a busy hermes serve can miss the 20s WS ping
@@ -399,45 +407,42 @@ async def send_voice_command(ws, device_id, command, payload):
         logger.error(f"Voice command failed for {device_id}: {e}")
         return False
 
-stt_helper = None
+_stt_model_name = None
 
-def _stt_ensure_started():
-    py = resolve_committed_python()
-    helper = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'companion_stt.py')
-    if not py or not os.path.exists(helper):
-        return None
-    return py, helper
+def _stt_model_name_cached():
+    """Configured local STT model (same resolution as companion_stt.py)."""
+    global _stt_model_name
+    if _stt_model_name:
+        return _stt_model_name
+    try:
+        from tools.transcription_common import DEFAULT_LOCAL_MODEL, _get_stt_section
+        from tools.transcription_tools import _load_stt_config
+        cfg = _load_stt_config()
+        model = (_get_stt_section(cfg, "local") or {}).get("model")
+        _stt_model_name = model or DEFAULT_LOCAL_MODEL
+    except Exception:
+        from tools.transcription_common import DEFAULT_LOCAL_MODEL
+        _stt_model_name = DEFAULT_LOCAL_MODEL
+    return _stt_model_name
+
+def _stt_transcribe_sync(wav_path, prompt):
+    from tools.transcription_tools import _transcribe_local
+    res = _transcribe_local(wav_path, _stt_model_name_cached(), prompt=prompt or None)
+    if not res.get("success"):
+        return None, res.get("error", "transcription failed")
+    return res.get("transcript", ""), None
 
 async def stt_transcribe(wav_path, prompt):
-    """NDJSON pipe into companion_stt.py running on the COMMITTED venv python.
-    One model total: the helper is long-lived (loads base once), never a second
-    in-process copy; never pip-installs anything."""
-    global stt_helper
+    """In-process STT. ONE model total: _get_or_load_local_model caches it
+    process-wide; run in a worker thread so CPU decode doesn't block the
+    event loop (threads, not subprocesses — still a single process)."""
     try:
-        if stt_helper is None or stt_helper.returncode is not None:
-            py_helper = _stt_ensure_started()
-            if py_helper is None:
-                return None, 'no committed venv python or companion_stt.py'
-            stt_helper = await asyncio.create_subprocess_exec(
-                py_helper[0], py_helper[1],
-                stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
-                stderr=None)
-        stt_helper.stdin.write((json.dumps({'wav': wav_path, 'prompt': prompt}) + '\n').encode())
-        await stt_helper.stdin.drain()
-        line = await asyncio.wait_for(stt_helper.stdout.readline(), STT_TIMEOUT_S)
+        return await asyncio.wait_for(
+            asyncio.to_thread(_stt_transcribe_sync, wav_path, prompt), STT_TIMEOUT_S)
     except asyncio.TimeoutError:
-        if stt_helper:
-            stt_helper.kill()
         return None, 'stt timeout'
     except Exception as e:
         return None, f'stt failed: {e}'
-    try:
-        res = json.loads(line)
-    except (json.JSONDecodeError, TypeError):
-        return None, 'stt bad output'
-    if not res.get('success'):
-        return None, res.get('error', 'stt error')
-    return res.get('transcript', ''), None
 
 def _write_wav(name, pcm, rate):
     path = os.path.join(VOICE_TMP, name)

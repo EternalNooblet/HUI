@@ -25,6 +25,13 @@ import com.southpawin.companion.ui.PromptInputLayout
 import com.southpawin.companion.ui.SystemBannerView
 import com.southpawin.companion.ui.AttachmentPicker
 import com.southpawin.companion.ui.StickToBottomFab
+import androidx.drawerlayout.widget.DrawerLayout
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import android.widget.EditText
+import android.widget.Button
+import com.southpawin.companion.ui.SessionListAdapter
+import com.southpawin.companion.ui.toSessionRows
 import com.southpawin.companion.voice.VoiceUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -47,6 +54,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var promptInputLayout: PromptInputLayout
     private lateinit var systemBannerView: SystemBannerView
     private lateinit var stickToBottomFab: StickToBottomFab
+    private lateinit var drawerLayout: DrawerLayout
+    private lateinit var sessionAdapter: SessionListAdapter
+    private var sessionCache = listOf<com.southpawin.companion.db.ChatSessionSummary>()
     private lateinit var attachmentPicker: AttachmentPicker
 
     private val eventBus = EventBus()
@@ -63,6 +73,9 @@ class MainActivity : AppCompatActivity() {
             val toolbar = findViewById<Toolbar>(R.id.toolbar)
             setSupportActionBar(toolbar)
             supportActionBar?.setDisplayShowTitleEnabled(false)
+            drawerLayout = findViewById(R.id.drawerLayout)
+            toolbar.setNavigationIcon(android.R.drawable.ic_menu_sort_by_size)
+            toolbar.setNavigationOnClickListener { drawerLayout.open() }
 
             buildNameText = findViewById(R.id.buildNameText)
             chatRecyclerView = findViewById(R.id.chatRecyclerView)
@@ -145,20 +158,46 @@ class MainActivity : AppCompatActivity() {
                 }
             })
 
-            // VoiceUi attach — chat mode with voice input via mic button
-            VoiceUi.attach(
-                this,
-                chatRecyclerView,
-                promptInputLayout,
-                eventBus,
-                transport,
-                commandExecutor,
-                findViewById(R.id.thinkingBarView)
-            )
-
-            startVoiceLoops()
+            wireSessions(); startVoiceLoops()
             requestPermissionsAndAutoStart()
         }
+
+
+    private fun wireSessions() {
+        val rv = findViewById<RecyclerView>(R.id.sessionRecyclerView)
+        sessionAdapter = SessionListAdapter(this) { sid ->
+            VoiceUi.switchTo(sid)
+            sessionAdapter.setActive(sid)
+            drawerLayout.close()
+        }
+        rv.layoutManager = LinearLayoutManager(this)
+        rv.adapter = sessionAdapter
+        // Observe sessions (prompt-kit Sidebar history)
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+            VoiceUi.observeSessions().collect { sessions ->
+                sessionCache = sessions
+                sessionAdapter.setActive(VoiceUi.currentSessionId())
+                sessionAdapter.submitList(toSessionRows(sessions, findViewById<EditText>(R.id.sessionSearchInput).text.toString()))
+            }
+        }
+        findViewById<Button>(R.id.newChatBtn).setOnClickListener {
+            VoiceUi.newChat()
+            sessionAdapter.setActive(VoiceUi.currentSessionId())
+            drawerLayout.close()
+        }
+        val searchInput = findViewById<EditText>(R.id.sessionSearchInput)
+        findViewById<ImageButton>(R.id.sidebarSearchBtn).setOnClickListener {
+            searchInput.visibility = if (searchInput.visibility == android.view.View.VISIBLE) android.view.View.GONE else android.view.View.VISIBLE
+            if (searchInput.visibility == android.view.View.VISIBLE) searchInput.requestFocus()
+        }
+        searchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                sessionAdapter.submitList(toSessionRows(sessionCache, s.toString()))
+            }
+        })
+    }
 
     override fun onResume() {
         super.onResume()
