@@ -27,11 +27,14 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+    defaults:
+      run:
+        working-directory: hui-cli
     steps:
       - name: Checkout tag
         uses: actions/checkout@v4
         with:
-          git-ref: ${{ github.ref }}
+          ref: ${{ github.ref }}
 
       - name: Install Go
         run: |
@@ -93,7 +96,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          git-ref: ${{ github.ref }}
+          ref: ${{ github.ref }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
