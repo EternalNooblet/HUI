@@ -47,10 +47,11 @@ class AutoSizingEditText @JvmOverloads constructor(
             androidx.core.content.ContextCompat.getColor(context, R.color.pk_muted_foreground)
         ))
         setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.pk_foreground))
-        gravity = Gravity.START or Gravity.TOP
+        textSize = 21f
+        gravity = Gravity.CENTER_HORIZONTAL or Gravity.CENTER_VERTICAL
         setHorizontallyScrolling(false)
         setVerticalScrollBarEnabled(false)
-        setCursorVisible(true)
+        setCursorVisible(false)
         setInputType(android.text.InputType.TYPE_CLASS_TEXT or
             android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE or
             android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES)
@@ -65,10 +66,8 @@ class AutoSizingEditText @JvmOverloads constructor(
         setClickable(true)
         setLongClickable(true)
 
-        // Enable auto-sizing (API 26+)
-        if (android.os.Build.VERSION.SDK_INT >= 26) {
-            TextViewCompat.setAutoSizeTextTypeWithDefaults(this, TextViewCompat.AUTO_SIZE_TEXT_TYPE_UNIFORM)
-        }
+        // Fixed 21sp typed (70% of 30sp placeholder) — no autosize shrink
+        TextViewCompat.setAutoSizeTextTypeWithDefaults(this, TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE)
 
         // Text watcher for height adjustment
         addTextChangedListener(object : TextWatcher {
@@ -76,6 +75,7 @@ class AutoSizingEditText @JvmOverloads constructor(
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
                 adjustHeight()
+                updateCursor()
             }
         })
 
@@ -86,8 +86,21 @@ class AutoSizingEditText @JvmOverloads constructor(
         // Convert maxHeight from dp to px
         maxHeightPx = (240 * context.resources.displayMetrics.density).toInt()
 
-        // Initial height adjustment
-        post { adjustHeight() }
+        // Initial height adjustment, and no cursor until user focuses for typing
+        post {
+            adjustHeight()
+            clearFocus()
+            setCursorVisible(false)
+        }
+    }
+
+    override fun onFocusChanged(focused: Boolean, direction: Int, previouslyFocusedRect: android.graphics.Rect?) {
+        super.onFocusChanged(focused, direction, previouslyFocusedRect)
+        updateCursor()
+    }
+
+    private fun updateCursor() {
+        setCursorVisible(hasFocus() && !text.isNullOrEmpty())
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {

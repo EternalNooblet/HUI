@@ -61,6 +61,19 @@ class PromptInputLayout constructor(
         textarea = view.findViewById(R.id.promptInputTextarea)
         actionsContainer = view.findViewById(R.id.promptInputActions)
 
+        // Overlay placeholder (30sp) visible only when textarea empty
+        val placeholder = view.findViewById<View>(R.id.promptInputPlaceholder)
+        val updatePlaceholder = {
+            val empty = textarea?.text.isNullOrEmpty()
+            placeholder?.visibility = if (empty) View.VISIBLE else View.GONE
+        }
+        updatePlaceholder()
+        textarea?.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) { updatePlaceholder() }
+        })
+
         // Configure textarea
         textarea?.apply {
             setOnEditorActionListener { _, actionId, _ ->
