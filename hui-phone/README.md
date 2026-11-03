@@ -77,12 +77,12 @@ export ANDROID_HOME=/home/papa/Android/Sdk
 adb install -r app/build/outputs/apk/release/app-release.apk
 
 # Permissions
-adb shell pm grant com.southpawin.companion android.permission.CAMERA
-adb shell pm grant com.southpawin.companion android.permission.RECORD_AUDIO
+adb shell pm grant com.hui.companion android.permission.CAMERA
+adb shell pm grant com.hui.companion android.permission.RECORD_AUDIO
 
 # Start service
 adb shell am start-foreground-service \
-  -n com.southpawin.companion/.service.CompanionService
+  -n com.hui.companion/.service.CompanionService
 ```
 
 ## Key Components

@@ -46,11 +46,11 @@ val ksKeyPassword: String? = propOrEnv("android.injected.signing.key.password")
     ?: propOrEnv("KEY_PASSWORD") ?: propOrEnv("ANDROID_KEY_PASSWORD")
 
 android {
-    namespace = "com.southpawin.companion"
+    namespace = "com.hui.companion"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.southpawin.companion"
+        applicationId = "com.hui.companion"
         minSdk = 27  // Android 8.1
         targetSdk = 34
         versionCode = releaseVersionCode
