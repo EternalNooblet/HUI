@@ -30,6 +30,18 @@ class Transport(
     private val client = buildClient()
     private var reconnectDelay = 1000L
     private var isConnecting = false
+    // True after disconnect() / 401 / unauthenticated drop: onClosed/onFailure
+    // must not schedule a reconnect. Cleared by connect().
+    private var intentionalDisconnect = false
+
+    /** Public auth check for UI send paths (chat/voice). */
+    fun isAuthenticated(): Boolean = hasAuthToken()
+
+    /** Auth gate: no stored token = not authenticated. Checked on every
+     *  connect/send so clearing the token in Settings blocks traffic
+     *  immediately, even on an already-open socket. */
+    private fun hasAuthToken(): Boolean =
+        !(Config.authToken ?: Config.loadAuthToken()).isNullOrEmpty()
 
     /** True when a WebSocket session is currently open. */
     val isConnected: Boolean
@@ -43,7 +55,13 @@ class Transport(
         if (connectionState != state) {
             connectionState = state
             Timber.i("Transport state: $state")
-            onConnectionStateChanged?.invoke(state)
+            // onFailure/onOpen run on OkHttp threads; the callback touches
+            // views (SystemBannerView), so it must run on the main thread
+            // (CalledFromWrongThreadException otherwise — crash on any
+            // reconnect, e.g. server restart).
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                onConnectionStateChanged?.invoke(state)
+            }
         }
     }
 
@@ -82,14 +100,22 @@ class Transport(
             Timber.w("WSS closed: $code $reason")
             this@Transport.webSocket = null
             setConnectionState(ConnectionState.DISCONNECTED)
-            if (!isConnecting) scheduleReconnect()
+            if (!isConnecting && !intentionalDisconnect) scheduleReconnect()
         }
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
             Timber.e(t, "WSS failure, response: ${response?.code}")
             this@Transport.webSocket = null
             setConnectionState(ConnectionState.DISCONNECTED)
-            if (!isConnecting) scheduleReconnect()
+            if (response?.code == 401) {
+                // Token rejected (expired/revoked): retrying with the same
+                // token is pointless — wait for a fresh QR scan in Settings.
+                Timber.w("WSS 401 unauthorized — not reconnecting; scan a fresh QR in Settings")
+                isConnecting = false
+                intentionalDisconnect = true
+                return
+            }
+            if (!isConnecting && !intentionalDisconnect) scheduleReconnect()
         }
     }
 
@@ -99,6 +125,14 @@ class Transport(
             Timber.w("No server URL configured")
             return
         }
+        if (!hasAuthToken()) {
+            // Unauthenticated: do not even open a socket. The UI banner
+            // (via DISCONNECTED) makes clear nothing is being received.
+            Timber.w("Not authenticated — connect() blocked; scan a QR in Settings")
+            setConnectionState(ConnectionState.DISCONNECTED)
+            return
+        }
+        intentionalDisconnect = false
         isConnecting = true
         setConnectionState(ConnectionState.CONNECTING)
         Timber.i("Connecting securely to ${Config.wsUrl}")
@@ -117,13 +151,23 @@ class Transport(
         webSocket?.send(hello)
     }
 
-    fun send(event: Event) {
+    /** @return true if the event was actually handed to the socket. */
+    fun send(event: Event): Boolean {
+        if (!hasAuthToken()) {
+            // Blocked: unauthenticated devices must not get events received.
+            // Drop locally, flip the UI to DISCONNECTED, and close any
+            // stale socket so the server stops seeing this device too.
+            Timber.w("Not authenticated — event dropped: ${event.type}; scan a QR in Settings")
+            disconnect()
+            return false
+        }
         val sent = webSocket?.send(event.toJson())
         if (sent == true) {
             Timber.d("Sent event: ${event.type}")
         } else {
             Timber.w("WSS not connected, event dropped: ${event.type}")
         }
+        return sent == true
     }
 
     private fun scheduleReconnect() {
@@ -134,8 +178,11 @@ class Transport(
     }
 
     fun disconnect() {
+        intentionalDisconnect = true
+        isConnecting = false
         webSocket?.close(1000, "Client disconnect")
         webSocket = null
+        setConnectionState(ConnectionState.DISCONNECTED)
     }
 
     private fun buildClient(): OkHttpClient {

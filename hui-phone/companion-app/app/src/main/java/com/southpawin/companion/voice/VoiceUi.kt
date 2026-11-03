@@ -181,6 +181,21 @@ object VoiceUi {
         val trimmedText = text.trim()
         if (trimmedText.isEmpty()) return
 
+        // Unauthenticated: block BEFORE the local echo. Inserting first
+        // (old behavior) put the message in the window looking delivered
+        // even though Transport dropped it — the user could not tell it
+        // was never received. Keep the text in the input, say why.
+        if (!transport.isAuthenticated()) {
+            activity?.runOnUiThread {
+                android.widget.Toast.makeText(
+                    activity,
+                    "Not authenticated — message not sent. Scan a QR in Settings to reconnect.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
+            return
+        }
+
         val session = currentVoiceSession ?: VoiceInput.generateSessionId()
         currentVoiceSession = session
 

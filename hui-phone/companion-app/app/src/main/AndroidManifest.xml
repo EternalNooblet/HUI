@@ -89,6 +89,14 @@
             android:label="@string/app_name"
             android:theme="@style/Theme.CompanionApp.NoActionBar" />
 
+        <!-- QR auth scanner (CameraX + ML Kit), launched only from Settings -->
+        <activity
+            android:name=".QrScanActivity"
+            android:exported="false"
+            android:label="Scan QR code"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.CompanionApp.NoActionBar" />
+
     </application>
 
 </manifest>
