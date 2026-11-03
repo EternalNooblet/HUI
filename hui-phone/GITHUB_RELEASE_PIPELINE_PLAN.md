@@ -210,5 +210,5 @@ means schema error, not a step failure):
 - [x] Phase 1 deterministic versioning + signing config (local `assembleRelease` → signed APK) — verified 2026-11-03: signed APK + AAB, apksigner v2 OK, versionCode/versionName override OK
 - [x] Phase 2 `apk` job in `release.yml` (validate YAML, re-simulate shell steps locally first) — YAML OK, shell snippets simulated OK
 - [x] Phase 3 keystore + 4 secrets set (gh secret list: all 4 present 2026-11-03); offline backup: user to confirm
-- [~] Phase 4 manual workflow_dispatch run 41740692551 GREEN (release job fixed for hui-cli/ layout): APK 22M + AAB 24M built, apksigner v2 OK with real keystore. REMAINING: real tag push to test publish/upload path + downloaded-APK verify + install
+- [x] Phase 4 v0.1.10 tag run 41741625061 GREEN: release lists 8 assets (5 Go + APK + AAB + SHA256SUMS), draft=false; downloaded hui-phone-v0.1.10.apk passes apksigner verify (v2, 1 signer), versionName=0.1.10 versionCode=1793749606, SHA matches. Install on device NOT tested (no device attached).
 - [x] Phase 5 README + workflow comments updated; Go assets still intact (Go job untouched except publish gated on tag)
