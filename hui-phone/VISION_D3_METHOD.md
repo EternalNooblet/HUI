@@ -31,7 +31,7 @@ Call `vision_analyze` on the screenshot. Ask for:
 ```bash
 adb -s YOUR_PHONE_IP:5555 shell uiautomator dump /sdcard/view.xml
 adb -s YOUR_PHONE_IP:5555 pull /sdcard/view.xml /home/papa/.hermes/cache/scratch/view.xml
-grep -o 'resource-id="com.southpawin.companion:id/promptInputSendBtn"[^>]*bounds="[^"]*"' view.xml
+grep -o 'resource-id="com.hui.companion:id/promptInputSendBtn"[^>]*bounds="[^"]*"' view.xml
 ```
 Center = midpoint of bounds `[x1,y1][x2,y2]`.
 

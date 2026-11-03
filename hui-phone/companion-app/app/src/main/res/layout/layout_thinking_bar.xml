@@ -19,7 +19,7 @@
         android:orientation="horizontal"
         android:gravity="center_vertical">
 
-        <com.southpawin.companion.ui.TextShimmerTextView
+        <com.hui.companion.ui.TextShimmerTextView
             android:id="@+id/thinkingShimmerText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content" />
@@ -39,7 +39,7 @@
     <!-- Dots from end of word to edge of screen (user-directed extension of
          prompt-kit dots-loader pattern). Fills remaining width; if a stop
          button is present, dots terminate at its left edge. -->
-    <com.southpawin.companion.ui.ThinkingDotsView
+    <com.hui.companion.ui.ThinkingDotsView
         android:id="@+id/thinkingDots"
         android:layout_width="0dp"
         android:layout_height="20dp"

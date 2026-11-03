@@ -1,5 +1,5 @@
 # ProGuard rules for release build
--keep class com.southpawin.companion.** { *; }
+-keep class com.hui.companion.** { *; }
 -keep class org.tensorflow.lite.** { *; }
 -keep class okhttp3.** { *; }
 -keep class com.google.gson.** { *; }

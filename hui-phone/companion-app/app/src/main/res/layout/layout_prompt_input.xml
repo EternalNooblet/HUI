@@ -18,7 +18,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
-            <com.southpawin.companion.ui.AutoSizingEditText
+            <com.hui.companion.ui.AutoSizingEditText
                 android:id="@+id/promptInputTextarea"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -52,7 +52,7 @@
         </FrameLayout>
 
         <!-- Actions: flex items-center gap-2 -->
-        <com.southpawin.companion.ui.PromptInputActions
+        <com.hui.companion.ui.PromptInputActions
             android:id="@+id/promptInputActions"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

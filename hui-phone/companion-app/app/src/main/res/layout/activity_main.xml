@@ -31,13 +31,13 @@
 
         </androidx.appcompat.widget.Toolbar>
 
-        <com.southpawin.companion.ui.SystemBannerView
+        <com.hui.companion.ui.SystemBannerView
             android:id="@+id/systemBannerView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:layout_constraintTop_toBottomOf="@id/toolbar"/>
 
-        <com.southpawin.companion.ui.ChatRecyclerView
+        <com.hui.companion.ui.ChatRecyclerView
             android:id="@+id/chatRecyclerView"
             android:layout_width="0dp"
             android:layout_height="0dp"
@@ -51,7 +51,7 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"/>
 
-        <com.southpawin.companion.ui.ThinkingBarView
+        <com.hui.companion.ui.ThinkingBarView
             android:id="@+id/thinkingBarView"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -63,7 +63,7 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"/>
 
-        <com.southpawin.companion.ui.PromptInputLayout
+        <com.hui.companion.ui.PromptInputLayout
             android:id="@+id/promptInputLayout"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -73,7 +73,7 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"/>
 
-        <com.southpawin.companion.ui.StickToBottomFab
+        <com.hui.companion.ui.StickToBottomFab
             android:id="@+id/stickToBottomFab"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
