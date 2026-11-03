@@ -26,7 +26,7 @@ class PromptInputLayout constructor(
 
     private var textarea: AutoSizingEditText? = null
     private var actionsContainer: LinearLayout? = null
-    private var onSendCallback: (String) -> Unit = {}
+    private var onSendCallback: (String) -> Boolean = { true }
     private var onAttachmentClickCallback: () -> Unit = {}
 
     constructor(context: Context) : this(context, null)
@@ -91,7 +91,7 @@ class PromptInputLayout constructor(
         }
     }
 
-    fun setOnSendListener(callback: (String) -> Unit) {
+    fun setOnSendListener(callback: (String) -> Boolean) {
         onSendCallback = callback
     }
 
@@ -131,9 +131,24 @@ class PromptInputLayout constructor(
     private fun sendMessage() {
         val text = textarea?.text.toString().trim()
         if (text.isNotEmpty()) {
-            onSendCallback(text)
-            clearText()
+            // Callback returns false when the send was blocked (not
+            // authenticated / not connected): keep the text in the input
+            // and the keyboard up so the user can retry, instead of
+            // silently losing the message.
+            if (onSendCallback(text)) {
+                clearText()
+                hideKeyboard()
+            }
         }
+    }
+
+    /** Hide the soft keyboard after sending (and drop input focus). */
+    private fun hideKeyboard() {
+        val ta = textarea ?: return
+        val imm = context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
+            as? android.view.inputmethod.InputMethodManager
+        imm?.hideSoftInputFromWindow(ta.windowToken, 0)
+        ta.clearFocus()
     }
 
     override fun setEnabled(enabled: Boolean) {

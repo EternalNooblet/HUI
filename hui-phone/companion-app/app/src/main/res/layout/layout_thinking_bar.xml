@@ -1,44 +1,62 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ThinkingBar: flex w-full items-center justify-between -->
+<!-- Upstream prompt-kit ThinkingBar:
+     div: flex w-full items-center justify-between
+     Left (onClick): button flex items-center gap-1 text-sm transition-opacity hover:opacity-80
+       -> TextShimmer font-medium + ChevronRight size-4 text-muted-foreground
+     Left (no onClick): TextShimmer cursor-default font-medium (no chevron)
+     Right (onStop): button text-sm muted-foreground, border-b dotted only, no box -->
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:gravity="center_vertical"
-    android:padding="@dimen/pk_space_2">
+    android:gravity="center_vertical">
 
-    <!-- Clickable area: TextShimmer + ChevronRight -->
-    <Button
+    <LinearLayout
         android:id="@+id/thinkingClickBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="?attr/selectableItemBackground"
-        android:padding="@dimen/pk_space_2"
-        android:visibility="gone">
-        
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
         <com.southpawin.companion.ui.TextShimmerTextView
             android:id="@+id/thinkingShimmerText"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textStyle="bold" />
-        
-        <ImageView
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:src="@drawable/ic_chevron_right"
-            android:tint="@color/pk_muted_foreground"
-            android:layout_marginStart="@dimen/pk_space_1" />
-    </Button>
+            android:layout_height="wrap_content" />
 
-    <!-- Stop button: dotted border-b text-sm -->
-    <Button
+        <ImageView
+            android:id="@+id/thinkingChevron"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginStart="4dp"
+            android:src="@drawable/ic_chevron_right"
+            android:tint="@color/pk_muted_foreground" />
+    </LinearLayout>
+
+    <!-- gap-1 = 4dp between text and chevron is marginStart above.
+         Upstream stop: text-sm, muted, border-b dotted, no padding box. -->
+
+    <!-- Dots from end of word to edge of screen (user-directed extension of
+         prompt-kit dots-loader pattern). Fills remaining width; if a stop
+         button is present, dots terminate at its left edge. -->
+    <com.southpawin.companion.ui.ThinkingDotsView
+        android:id="@+id/thinkingDots"
+        android:layout_width="0dp"
+        android:layout_height="20dp"
+        android:layout_weight="1"
+        android:layout_marginStart="8dp" />
+
+    <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/thinkingStopBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:minWidth="0dp"
+        android:minHeight="0dp"
+        android:padding="0dp"
+        android:paddingBottom="2dp"
+        android:background="@drawable/bg_thinking_stop_button"
         android:text="@string/thinking_stop_label"
         android:textSize="@dimen/pk_text_sm"
-        android:background="@drawable/bg_thinking_stop_button"
-        android:padding="@dimen/pk_space_2"
-        android:visibility="gone" />
+        android:textColor="@color/pk_muted_foreground" />
 </LinearLayout>

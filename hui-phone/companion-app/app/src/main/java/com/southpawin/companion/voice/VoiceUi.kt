@@ -32,6 +32,12 @@ object VoiceUi {
     private var activity: AppCompatActivity? = null
     private var chatRecyclerView: com.southpawin.companion.ui.ChatRecyclerView? = null
     private var promptInputLayout: PromptInputLayout? = null
+    private var thinkingBar: com.southpawin.companion.ui.ThinkingBarView? = null
+    private val thinkingHandler = Handler(Looper.getMainLooper())
+    private val thinkingTimeout = Runnable { thinkingBar?.stop() }
+    // Server reply timeout is 180s; hide the indicator at 90s so a lost
+    // reply doesn't leave it spinning forever (a late reply still lands).
+    private val THINKING_TIMEOUT_MS = 90_000L
 
     private var isListening = false
     private var voiceInput: VoiceInput? = null
@@ -49,11 +55,13 @@ object VoiceUi {
         promptInput: PromptInputLayout,
         eventBus: EventBus,
         transport: Transport,
-        commandExecutor: CommandExecutor
+        commandExecutor: CommandExecutor,
+        thinking: com.southpawin.companion.ui.ThinkingBarView? = null
     ) {
         activity = act
         chatRecyclerView = chatRv
         promptInputLayout = promptInput
+        thinkingBar = thinking
 
         messageRepository = MessageRepositoryProvider.getInstance(act)
 
@@ -166,6 +174,7 @@ object VoiceUi {
     }
 
     fun handleChatReply(text: String, voiceSession: String) {
+        stopThinking()
         val scope = CoroutineScope(Dispatchers.IO)
         scope.launch {
             messageRepository?.insertMessage("assistant", text, voiceSession)
@@ -177,9 +186,9 @@ object VoiceUi {
         text: String,
         eventBus: EventBus,
         transport: Transport
-    ) {
+    ): Boolean {
         val trimmedText = text.trim()
-        if (trimmedText.isEmpty()) return
+        if (trimmedText.isEmpty()) return false
 
         // Unauthenticated: block BEFORE the local echo. Inserting first
         // (old behavior) put the message in the window looking delivered
@@ -193,7 +202,21 @@ object VoiceUi {
                     android.widget.Toast.LENGTH_LONG
                 ).show()
             }
-            return
+            return false
+        }
+        if (!transport.isConnected) {
+            // Authenticated but socket not up yet (e.g. right after a QR
+            // scan): kick connect and don't echo yet — otherwise the
+            // message lands in the window and then drops silently.
+            transport.connect()
+            activity?.runOnUiThread {
+                android.widget.Toast.makeText(
+                    activity,
+                    "Connecting… message not sent yet. Try again in a moment.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
+            return false
         }
 
         val session = currentVoiceSession ?: VoiceInput.generateSessionId()
@@ -205,13 +228,23 @@ object VoiceUi {
             messageRepository?.insertMessage("user", trimmedText, session)
         }
 
-        // Clear input
-        promptInputLayout?.clearText()
-
-        // Send chat event
+        // Send chat event (input is cleared by PromptInputLayout on true)
         val payload = ChatEvent.ChatPayload(trimmedText, session)
         eventBus.tryPost(ChatEvent(payload))
+        startThinking()
         setStatus("Sent…")
+        return true
+    }
+
+    private fun startThinking() {
+        thinkingHandler.removeCallbacks(thinkingTimeout)
+        thinkingBar?.start()
+        thinkingHandler.postDelayed(thinkingTimeout, THINKING_TIMEOUT_MS)
+    }
+
+    private fun stopThinking() {
+        thinkingHandler.removeCallbacks(thinkingTimeout)
+        thinkingBar?.stop()
     }
 
     private fun setStatus(text: String) {

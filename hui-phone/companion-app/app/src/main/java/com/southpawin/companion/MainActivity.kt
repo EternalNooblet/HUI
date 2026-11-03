@@ -128,7 +128,8 @@ class MainActivity : AppCompatActivity() {
                 promptInputLayout,
                 eventBus,
                 transport,
-                commandExecutor
+                commandExecutor,
+                findViewById(R.id.thinkingBarView)
             )
 
             // Send button enable/disable based on input text
@@ -151,7 +152,8 @@ class MainActivity : AppCompatActivity() {
                 promptInputLayout,
                 eventBus,
                 transport,
-                commandExecutor
+                commandExecutor,
+                findViewById(R.id.thinkingBarView)
             )
 
             startVoiceLoops()
@@ -175,6 +177,11 @@ class MainActivity : AppCompatActivity() {
                 if (::systemBannerView.isInitialized) {
                     systemBannerView.show("Disconnected from server", SystemBannerView.Variant.ERROR, 4000)
                 }
+            } else if (!transport.isConnected) {
+                // Authenticated (e.g. just scanned a QR) but the socket was
+                // never opened — connect() was blocked at startup for lack
+                // of a token. Connect now, or sends drop silently.
+                transport.connect()
             }
         }
     }
