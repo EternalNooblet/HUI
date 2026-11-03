@@ -75,6 +75,7 @@ android {
 repositories {
     google()
     mavenCentral()
+    maven { url = uri("https://jitpack.io") }
 }
 
 dependencies {
@@ -125,6 +126,9 @@ dependencies {
 
     // Image loading for ImageMessageView (prompt-kit Image component)
     implementation("io.coil-kt:coil:2.5.0")
+
+    // QR authentication (ML Kit + CameraX)
+    implementation("com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1")
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {

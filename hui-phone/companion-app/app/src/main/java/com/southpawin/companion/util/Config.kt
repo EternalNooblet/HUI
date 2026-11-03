@@ -77,20 +77,36 @@ object Config {
     fun setServerUrl(url: String) {
         serverUrl = url
         wsUrl = url.replace("http://", "ws://").replace("https://", "wss://") + "/ws"
+        getPrefs().edit().putString("server_url", url).commit()
+    }
+
+    fun loadServerUrl(): String {
+        return getPrefs().getString("server_url", null)?.let {
+            setServerUrl(it)
+            it
+        } ?: BuildConfig.SERVER_URL
     }
     
     fun setAuthToken(token: String) {
         authToken = token
-        getPrefs().edit().putString("auth_token", token).apply()
+        getPrefs().edit().putString("auth_token", token).commit()
     }
     
     fun loadAuthToken(): String? {
         return getPrefs().getString("auth_token", null)?.also { authToken = it }
     }
+
+    /** Local sign-out: forget the token on this phone. Does not revoke it
+     *  server-side (that is hermes_revoke_token.py) and does not clear the
+     *  server URL, so a fresh QR scan reconnects to the same server. */
+    fun clearAuthToken() {
+        authToken = null
+        getPrefs().edit().remove("auth_token").commit()
+    }
     
     fun setVoice(code: String) {
         ttsVoice = code
-        getPrefs().edit().putString("tts_voice", code).apply()
+        getPrefs().edit().putString("tts_voice", code).commit()
     }
     
     fun loadVoice(): String? {

@@ -43,6 +43,7 @@ class CompanionService : Service() {
     companion object {
         const val NOTIFICATION_ID = 1
         const val CHANNEL_ID = "companion_service_v2"
+        const val ACTION_DISCONNECT = "com.southpawin.companion.ACTION_DISCONNECT"
     }
     
     override fun onCreate() {
@@ -87,6 +88,12 @@ class CompanionService : Service() {
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_DISCONNECT) {
+            // Settings sign-out: close the socket so the server stops
+            // receiving events from this (now unauthenticated) phone.
+            Timber.i("CompanionService: disconnect requested (unauthenticated)")
+            transport.disconnect()
+        }
         return START_STICKY
     }
     

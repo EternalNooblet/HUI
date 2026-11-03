@@ -117,6 +117,18 @@ class SystemBannerView @JvmOverloads constructor(
             Variant.WARNING -> R.color.pk_state_ready_text
             Variant.ERROR -> R.color.pk_state_error_text
         }
-        bannerIcon?.setColorFilter(androidx.core.content.ContextCompat.getColor(context, color))
+        val tint = androidx.core.content.ContextCompat.getColor(context, color)
+        // ERROR gets a red X-circle, not the white donut / green check:
+        // a green circle on "Disconnected from server" reads as success.
+        val iconRes = when (variant) {
+            Variant.ERROR -> R.drawable.ic_x_circle
+            else -> R.drawable.ic_notification
+        }
+        bannerIcon?.setImageResource(iconRes)
+        bannerIcon?.setColorFilter(tint)
+        dismissButton?.setImageResource(
+            if (variant == Variant.ERROR) R.drawable.ic_x_circle else R.drawable.ic_check_circle
+        )
+        dismissButton?.setColorFilter(tint)
     }
 }

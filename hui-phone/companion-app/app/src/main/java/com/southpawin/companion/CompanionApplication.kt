@@ -16,5 +16,13 @@ class CompanionApplication : Application() {
         }
         // Pre-initialize Room database
         AppDatabase.getInstance(this)
+        // Load persisted auth so QR-scanned connection details survive restart
+        try {
+            com.southpawin.companion.util.Config.loadVoice()
+            com.southpawin.companion.util.Config.loadAuthToken()
+            com.southpawin.companion.util.Config.loadServerUrl()
+        } catch (e: Exception) {
+            Timber.w("Could not load persisted config on startup", e)
+        }
     }
 }

@@ -15,6 +15,7 @@ import hmac
 import hashlib
 import os
 import sys
+import uuid
 
 CFG = os.path.expanduser("~/.hermes/config.yaml")
 
@@ -45,7 +46,12 @@ def main() -> None:
 
     ttl = int(os.environ.get("TOKEN_TTL_SECONDS", str(12 * 3600)))
     exp = int(time.time()) + max(60, ttl)
-    payload = json.dumps({"sub": user, "kind": "access", "exp": exp},
+    # jti: unique per minted token so companion_wss_server can revoke
+    # this one QR/phone (server/revoked_tokens.json) without rotating
+    # the global secret. hermes serve ignores extra claims (_unsign
+    # checks only kind + exp), so this is safe for /api/ws too.
+    payload = json.dumps({"sub": user, "kind": "access", "exp": exp,
+                          "jti": uuid.uuid4().hex},
                          separators=(",", ":")).encode()
     sig = hmac.new(secret_bytes(raw), payload, hashlib.sha256).digest()
     sys.stdout.write(base64.b64encode(payload + sig).decode() + "\n")

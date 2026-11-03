@@ -17,6 +17,8 @@ Wire additions (everything else unchanged):
 import asyncio
 import base64
 import glob
+import hashlib
+import hmac
 import json
 import logging
 import os
@@ -45,6 +47,108 @@ STT_TIMEOUT_S = 90
 REPLY_TIMEOUT_S = 180
 GATEWAY_WS_URL = 'ws://10.0.0.126:9119/api/ws'  # runtime: os.environ['GATEWAY_WS_URL'] wins
 MINT_SCRIPT = os.path.expanduser('~/projects/hui/hui-cli/tools/mint_access_token.py')
+
+# ------------------------------------------------------------------- auth ---
+# Phone auth (option C: per-token revocation). The QR token is the same
+# signed blob hermes serve verifies for /api/ws: base64(payload || sig),
+# sig = HMAC-SHA256(payload, dashboard.basic_auth secret). Payload carries
+# a unique jti per minted QR (mint_access_token.py / hermes_auth_qr.py);
+# hermes serve ignores extra claims, we enforce them here:
+#   valid HMAC + kind=access + exp in future + jti/fingerprint NOT revoked.
+# Revoked list: server/revoked_tokens.json, edited by
+# server/hermes_revoke_token.py. Legacy pre-jti tokens (no jti claim) are
+# accepted if otherwise valid — revoke those by fingerprint instead.
+# Set COMPANION_AUTH=off to disable (dev only; default is enforced).
+HERMES_CFG = os.path.expanduser('~/.hermes/config.yaml')
+REVOKED_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'revoked_tokens.json')
+AUTH_REQUIRED = os.environ.get('COMPANION_AUTH', 'on').lower() not in ('off', '0', 'false', 'no')
+
+def _basic_auth_secret():
+    """dashboard.basic_auth secret from ~/.hermes/config.yaml, no PyYAML dep."""
+    user = raw = None
+    in_dashboard = in_basic = False
+    try:
+        with open(HERMES_CFG) as f:
+            for line in f:
+                if not line.strip() or line.lstrip().startswith('#'):
+                    continue
+                indent = len(line) - len(line.lstrip())
+                key, _, val = line.strip().partition(':')
+                val = val.strip().strip('"').strip("'")
+                if indent == 0:
+                    in_dashboard = key == 'dashboard'
+                    in_basic = False
+                elif in_dashboard and indent == 2:
+                    in_basic = key == 'basic_auth'
+                elif in_dashboard and in_basic and indent >= 4:
+                    if key == 'username':
+                        user = val
+                    elif key == 'secret':
+                        raw = val
+    except OSError:
+        return None
+    if not raw:
+        return None
+    for dec in (base64.b64decode, bytes.fromhex):
+        try:
+            d = dec(raw)
+            if len(d) >= 16:
+                return d
+        except Exception:
+            pass
+    return raw.encode('utf-8')
+
+def _load_revoked():
+    try:
+        with open(REVOKED_FILE) as f:
+            data = json.load(f)
+        return set(data.get('jti', [])), set(data.get('fingerprints', []))
+    except (OSError, ValueError):
+        return set(), set()
+
+def token_fingerprint(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+def verify_phone_token(token: str):
+    """(ok, reason, claims). reason is a short string for logs/401 body."""
+    if not AUTH_REQUIRED:
+        return True, 'auth_disabled', {}
+    if not token:
+        return False, 'no_token', {}
+    secret = _basic_auth_secret()
+    if secret is None:
+        logger.error('auth: cannot load dashboard.basic_auth secret — rejecting (fail closed)')
+        return False, 'server_misconfigured', {}
+    try:
+        padded = token + '=' * (-len(token) % 4)
+        try:
+            blob = base64.urlsafe_b64decode(padded.encode())
+        except Exception:
+            blob = base64.b64decode(padded.encode())
+        if len(blob) <= 32:
+            return False, 'malformed', {}
+        raw, sig = blob[:-32], blob[-32:]
+        expected = hmac.new(secret, raw, hashlib.sha256).digest()
+        if not hmac.compare_digest(sig, expected):
+            return False, 'bad_signature', {}
+        claims = json.loads(raw)
+    except Exception:
+        return False, 'malformed', {}
+    if claims.get('kind') != 'access':
+        return False, 'wrong_kind', {}
+    if int(claims.get('exp', 0)) <= int(time.time()):
+        return False, 'expired', {}
+    revoked_jti, revoked_fp = _load_revoked()
+    if claims.get('jti') and claims['jti'] in revoked_jti:
+        return False, 'revoked', {}
+    if token_fingerprint(token) in revoked_fp:
+        return False, 'revoked', {}
+    return True, 'ok', claims
+
+def is_token_revoked(token: str, claims: dict) -> bool:
+    revoked_jti, revoked_fp = _load_revoked()
+    return bool((claims.get('jti') and claims['jti'] in revoked_jti)
+                or token_fingerprint(token) in revoked_fp)
 HOTWORDS = ['Hermes', 'HUI', 'phone']  # → welcome config + whisper initial_prompt
 TTS_VOICES = [
     'en-US', 'en-GB', 'en-IN',
@@ -530,14 +634,19 @@ async def handle_event(device_id: str, event: dict, ws=None):
         await event_queue.put({'type': 'audio', 'device_id': device_id, 'payload': payload, 'timestamp': event.get('timestamp')})
 
 async def ws_handler(request):
+    device_id = request.headers.get('X-Device-ID', 'unknown')
+    auth_token = request.headers.get('Authorization', '').replace('Bearer ', '').strip()
+    ok, reason, claims = verify_phone_token(auth_token)
+    if not ok:
+        logger.warning(f"Auth rejected device {device_id}: {reason}")
+        return web.Response(status=401, text=json.dumps({'error': 'unauthorized', 'reason': reason}),
+                            content_type='application/json')
     ws = web.WebSocketResponse()
     await ws.prepare(request)
 
-    device_id = request.headers.get('X-Device-ID', 'unknown')
-    auth_token = request.headers.get('Authorization', '').replace('Bearer ', '')
-
-    logger.info(f"Device connected: {device_id} (secure)")
-    entry = {'ws': ws, 'connected_at': datetime.now().isoformat(), 'auth_token': auth_token}
+    logger.info(f"Device connected: {device_id} (secure, jti={claims.get('jti', 'legacy')[:8] if claims.get('jti') else 'legacy'})")
+    entry = {'ws': ws, 'connected_at': datetime.now().isoformat(), 'auth_token': auth_token,
+             'auth_claims': claims}
     if device_id not in connected_devices:
         connected_devices[device_id] = []
     connected_devices[device_id].append(entry)
@@ -643,6 +752,22 @@ async def voice_sweeper():
         await asyncio.sleep(5)
         _voice_sweep()
 
+async def revoked_watcher():
+    """Drop live connections whose token was revoked after connect."""
+    while True:
+        await asyncio.sleep(5)
+        try:
+            for device_id, entries in list(connected_devices.items()):
+                for entry in list(entries):
+                    if is_token_revoked(entry.get('auth_token', ''), entry.get('auth_claims', {})):
+                        logger.warning(f"Auth revoked: closing connection for {device_id}")
+                        try:
+                            await entry['ws'].close(code=1008, message='token revoked')
+                        except Exception:
+                            pass
+        except Exception as e:
+            logger.error(f"revoked_watcher: {e}")
+
 async def main():
     app = web.Application()
     app.router.add_get('/ws', ws_handler)
@@ -666,6 +791,7 @@ async def main():
     await site.start()
 
     asyncio.create_task(voice_sweeper())
+    asyncio.create_task(revoked_watcher())
 
     logger.info("Companion WSS server running on wss://0.0.0.0:8081/ws")
     logger.info("HTTP events: POST https://0.0.0.0:8081/events")

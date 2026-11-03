@@ -4,22 +4,21 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background">
+    android:background="@color/pk_background">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
-        android:background="@color/surface">
+        android:background="@color/pk_primary">
 
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="?attr/colorPrimary"
-            app:titleTextColor="@color/text_primary"
+            app:titleTextColor="@color/pk_primary_foreground"
             app:navigationIcon="@drawable/ic_arrow_back"
-            app:navigationContentDescription="@string/back"/>
+            app:navigationContentDescription="@string/back" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -28,143 +27,139 @@
         android:layout_height="match_parent"
         android:fillViewport="true"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
-        android:padding="16dp">
+        android:padding="@dimen/pk_space_4">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingBottom="32dp">
+            android:paddingBottom="@dimen/pk_space_8">
 
-            <TextView
-                android:id="@+id/voiceTitleText"
+            <!-- Authentication card (top) -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Voice Settings"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                android:textColor="@color/text_primary"
-                android:layout_marginBottom="16dp"/>
+                android:orientation="vertical"
+                android:background="@drawable/bg_settings_card"
+                android:padding="@dimen/pk_space_6"
+                android:layout_marginBottom="@dimen/pk_space_4">
 
-            <TextView
-                android:id="@+id/voiceStatusText"
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Authentication"
+                    android:textSize="@dimen/pk_text_lg"
+                    android:textStyle="bold"
+                    android:textColor="@color/pk_card_foreground" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Scan a QR code from your Hermes terminal to (re)connect."
+                    android:textSize="@dimen/pk_text_sm"
+                    android:textColor="@color/pk_muted_foreground"
+                    android:layout_marginTop="@dimen/pk_space_1" />
+
+                <Button
+                    android:id="@+id/authScanButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:text="Scan QR code"
+                    android:textSize="@dimen/pk_text_sm"
+                    android:textColor="@color/pk_primary_foreground"
+                    android:background="@drawable/bg_auth_button"
+                    android:paddingStart="@dimen/pk_space_4"
+                    android:paddingEnd="@dimen/pk_space_4"
+                    android:layout_marginTop="@dimen/pk_space_4" />
+
+                <TextView
+                    android:id="@+id/authStatusText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Status: Not authenticated"
+                    android:textSize="@dimen/pk_text_xs"
+                    android:textColor="@color/pk_muted_foreground"
+                    android:layout_marginTop="@dimen/pk_space_2" />
+
+                <Button
+                    android:id="@+id/authSignOutButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:text="Unauthenticate"
+                    android:textSize="@dimen/pk_text_sm"
+                    android:textColor="@color/pk_primary_foreground"
+                    android:background="@drawable/bg_auth_button"
+                    android:paddingStart="@dimen/pk_space_4"
+                    android:paddingEnd="@dimen/pk_space_4"
+                    android:layout_marginTop="@dimen/pk_space_3"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+
+            <!-- prompt-kit card: bg-card border rounded-lg shadow-xs p-6 space-y-4 -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Current voice: system default"
-                android:textSize="16sp"
-                android:textColor="@color/text_primary"
-                android:layout_marginBottom="24dp"/>
+                android:orientation="vertical"
+                android:background="@drawable/bg_settings_card"
+                android:padding="@dimen/pk_space_6">
 
-            <Button
-                android:id="@+id/voiceEnUsButton"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:text="en-US - English (US)"
-                android:textSize="16sp"
-                android:layout_marginBottom="12dp"/>
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Voice Settings"
+                    android:textSize="@dimen/pk_text_lg"
+                    android:textStyle="bold"
+                    android:textColor="@color/pk_card_foreground" />
 
-            <Button
-                android:id="@+id/voiceEnGbButton"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:text="en-GB - English (UK)"
-                android:textSize="16sp"
-                android:layout_marginBottom="12dp"/>
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Choose the voice used for spoken replies."
+                    android:textSize="@dimen/pk_text_sm"
+                    android:textColor="@color/pk_muted_foreground"
+                    android:layout_marginTop="@dimen/pk_space_1" />
 
-            <Button
-                android:id="@+id/voiceEnInButton"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:text="en-IN - English (India)"
-                android:textSize="16sp"
-                android:layout_marginBottom="12dp"/>
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Voice"
+                    android:textSize="@dimen/pk_text_sm"
+                    android:textColor="@color/pk_card_foreground"
+                    android:layout_marginTop="@dimen/pk_space_4" />
 
-            <Button
-                android:id="@+id/voiceDeDeButton"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:text="de-DE - German"
-                android:textSize="16sp"
-                android:layout_marginBottom="12dp"/>
+                <!-- prompt-kit select trigger: h-9 rounded-md border px-3 text-sm -->
+                <Spinner
+                    android:id="@+id/voiceSpinner"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:background="@drawable/bg_settings_dropdown"
+                    android:minWidth="180dp"
+                    android:maxWidth="280dp"
+                    android:paddingStart="@dimen/pk_space_3"
+                    android:paddingEnd="@dimen/pk_space_3"
+                    android:layout_marginTop="@dimen/pk_space_2"
+                    android:spinnerMode="dropdown"
+                    android:popupBackground="@drawable/bg_settings_dropdown_popup" />
 
-            <Button
-                android:id="@+id/voiceFrFrButton"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:text="fr-FR - French"
-                android:textSize="16sp"
-                android:layout_marginBottom="12dp"/>
+                <TextView
+                    android:id="@+id/voiceStatusText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Current voice: system default"
+                    android:textSize="@dimen/pk_text_xs"
+                    android:textColor="@color/pk_muted_foreground"
+                    android:layout_marginTop="@dimen/pk_space_2" />
 
-            <Button
-                android:id="@+id/voiceEsEsButton"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:text="es-ES - Spanish (Spain)"
-                android:textSize="16sp"
-                android:layout_marginBottom="12dp"/>
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Changes apply immediately."
+                    android:textSize="@dimen/pk_text_xs"
+                    android:textColor="@color/pk_muted_foreground"
+                    android:layout_marginTop="@dimen/pk_space_1" />
 
-            <Button
-                android:id="@+id/voiceEsUsButton"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:text="es-US - Spanish (US)"
-                android:textSize="16sp"
-                android:layout_marginBottom="12dp"/>
-
-            <Button
-                android:id="@+id/voiceItItButton"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:text="it-IT - Italian"
-                android:textSize="16sp"
-                android:layout_marginBottom="12dp"/>
-
-            <Button
-                android:id="@+id/voicePtBrButton"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:text="pt-BR - Portuguese (Brazil)"
-                android:textSize="16sp"
-                android:layout_marginBottom="12dp"/>
-
-            <Button
-                android:id="@+id/voiceRoRoButton"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:text="ro-RO - Romanian"
-                android:textSize="16sp"
-                android:layout_marginBottom="12dp"/>
-
-            <Button
-                android:id="@+id/voiceRuRuButton"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:text="ru-RU - Russian"
-                android:textSize="16sp"
-                android:layout_marginBottom="12dp"/>
-
-            <Button
-                android:id="@+id/voicePlPlButton"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:text="pl-PL - Polish"
-                android:textSize="16sp"
-                android:layout_marginBottom="12dp"/>
-
-            <Button
-                android:id="@+id/voiceCsCzButton"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:text="cs-CZ - Czech"
-                android:textSize="16sp"
-                android:layout_marginBottom="12dp"/>
-
-            <Button
-                android:id="@+id/voiceZhCnButton"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:text="zh-CN - Chinese"
-                android:textSize="16sp"/>
+            </LinearLayout>
 
         </LinearLayout>
     </ScrollView>

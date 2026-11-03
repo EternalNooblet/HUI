@@ -79,7 +79,14 @@ class MainActivity : AppCompatActivity() {
             systemBannerView.setOnDismissListener {
                 Timber.i("SystemBanner dismissed by user")
             }
-            systemBannerView.show("Connected to server", SystemBannerView.Variant.INFO, 4000)
+            // Honest initial banner: unauthenticated = Disconnected, not Connected.
+            val initialAuthed = !(com.southpawin.companion.util.Config.authToken
+                ?: com.southpawin.companion.util.Config.loadAuthToken()).isNullOrEmpty()
+            if (initialAuthed) {
+                systemBannerView.show("Connected to server", SystemBannerView.Variant.INFO, 4000)
+            } else {
+                systemBannerView.show("Disconnected from server", SystemBannerView.Variant.ERROR, 4000)
+            }
 
             // Transport connection state → SystemBannerView (dynamic)
             transport.onConnectionStateChanged = { state ->
@@ -87,9 +94,9 @@ class MainActivity : AppCompatActivity() {
                     Transport.ConnectionState.CONNECTED ->
                         systemBannerView.show("Connected to server", SystemBannerView.Variant.INFO, 4000)
                     Transport.ConnectionState.DISCONNECTED ->
-                        systemBannerView.show("Disconnected from server", SystemBannerView.Variant.ERROR)
+                        systemBannerView.show("Disconnected from server", SystemBannerView.Variant.ERROR, 4000)
                     Transport.ConnectionState.RECONNECTING ->
-                        systemBannerView.show("Reconnecting…", SystemBannerView.Variant.WARNING)
+                        systemBannerView.show("Reconnecting…", SystemBannerView.Variant.WARNING, 4000)
                     Transport.ConnectionState.CONNECTING ->
                         systemBannerView.show("Connecting…", SystemBannerView.Variant.INFO, 4000)
                 }
@@ -150,6 +157,27 @@ class MainActivity : AppCompatActivity() {
             startVoiceLoops()
             requestPermissionsAndAutoStart()
         }
+
+    override fun onResume() {
+        super.onResume()
+        // Returning from Settings after sign-out (or a revoked token):
+        // close this activity's socket so the banner honestly shows
+        // Disconnected and no event can be sent until a fresh QR scan.
+        // Guarded by ::transport.isInitialized — onResume can fire before
+        // onCreate finishes in some launch paths.
+        if (::transport.isInitialized) {
+            val token = com.southpawin.companion.util.Config.authToken
+                ?: com.southpawin.companion.util.Config.loadAuthToken()
+            if (token.isNullOrEmpty()) {
+                transport.disconnect()
+                // disconnect() may be a no-op state-wise (already DISCONNECTED),
+                // so show the banner directly to keep the UI honest.
+                if (::systemBannerView.isInitialized) {
+                    systemBannerView.show("Disconnected from server", SystemBannerView.Variant.ERROR, 4000)
+                }
+            }
+        }
+    }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)

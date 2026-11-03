@@ -26,6 +26,8 @@ server.key
 # server evidence/logs, never committed
 hui-phone/server/.voice_tmp/
 hui-phone/server/*.log
+hui-phone/server/revoked_tokens.json
+hui-phone/server/revoked_tokens.json.tmp
 
 # python bytecode, never committed
 __pycache__/
