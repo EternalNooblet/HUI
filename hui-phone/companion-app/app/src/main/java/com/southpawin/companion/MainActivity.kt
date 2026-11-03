@@ -35,6 +35,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var voiceWaveView: VoiceWaveView
     private lateinit var voiceToggleButton: CircularTalkButton
     private lateinit var buildNameText: TextView
+    private lateinit var chatRecyclerView: androidx.recyclerview.widget.RecyclerView
+    private lateinit var chatInputContainer: android.view.View
+    private lateinit var chatInputEditText: android.widget.EditText
+    private lateinit var chatSendButton: android.widget.ImageButton
 
     private val eventBus = EventBus()
     private lateinit var transport: Transport
@@ -57,20 +61,32 @@ class MainActivity : AppCompatActivity() {
         voiceStatusText = findViewById(R.id.voiceStatusText)
         voiceWaveView = findViewById(R.id.voiceWaveView)
         voiceToggleButton = findViewById(R.id.voiceToggleButton)
+        chatRecyclerView = findViewById(R.id.chatRecyclerView)
+        chatInputContainer = findViewById(R.id.chatInputContainer)
+        chatInputEditText = findViewById(R.id.chatInputEditText)
+        chatSendButton = findViewById(R.id.chatSendButton)
 
         commandExecutor = CommandExecutor(this)
         transport = Transport(this, eventBus, commandExecutor)
 
-        // Wire up the circular talk button
-        voiceToggleButton.setOnClickListener { 
-            VoiceUi.toggleVoice(eventBus, transport) 
-        }
-
-        VoiceUi.attach(this, voiceStatusText, voiceWaveView, voiceToggleButton, eventBus, transport)
+        VoiceUi.attach(
+            this,
+            statusText,
+            voiceWaveView,
+            voiceToggleButton,
+            chatRecyclerView,
+            chatInputContainer,
+            chatInputEditText,
+            chatSendButton,
+            voiceWaveView,
+            voiceStatusText,
+            eventBus,
+            transport,
+            commandExecutor
+        )
 
         startVoiceLoops()
         requestPermissionsAndAutoStart()
-
         updateUI()
     }
 

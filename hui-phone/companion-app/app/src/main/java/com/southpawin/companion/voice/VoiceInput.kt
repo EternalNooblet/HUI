@@ -159,7 +159,7 @@ class VoiceInput(
         return bytes
     }
 
-    private fun postVoiceCancel() {
+    fun postVoiceCancel() {
         val payload = VoiceCancelEvent.VoiceCancelPayload(voiceSession)
         eventBus.tryPost(VoiceCancelEvent(payload))
     }

@@ -7,6 +7,7 @@
     <color name="surface">#1E1E1E</color>
     <color name="text_primary">#FFFFFF</color>
     <color name="text_secondary">#B0B0B0</color>
+    <color name="text_on_primary">#FFFFFF</color>
     <color name="connected">#4CAF50</color>
     <color name="disconnected">#F44336</color>
     <color name="connecting">#FF9800</color>

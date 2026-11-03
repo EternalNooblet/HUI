@@ -1,6 +1,7 @@
 package com.southpawin.companion
 
 import android.app.Application
+import com.southpawin.companion.db.AppDatabase
 import com.southpawin.companion.util.CompanionAppContext
 import timber.log.Timber
 
@@ -13,5 +14,7 @@ class CompanionApplication : Application() {
         } else {
             Timber.plant(Timber.DebugTree())
         }
+        // Pre-initialize Room database
+        AppDatabase.getInstance(this)
     }
 }

@@ -29,6 +29,13 @@ class CommandExecutor(private val context: Context) {
                 }
                 Result.Success()
             }
+            "chat_reply" -> {
+                command.payload.text?.let { text ->
+                    val voiceSession = command.payload.voiceSession ?: ""
+                    VoiceUi.handleChatReply(text, voiceSession)
+                }
+                Result.Success()
+            }
             "screen_action" -> {
                 command.payload.action?.let { action ->
                     val pm = context.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
