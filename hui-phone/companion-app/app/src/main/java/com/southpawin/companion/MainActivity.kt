@@ -29,8 +29,6 @@ import timber.log.Timber
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var statusText: TextView
-    private lateinit var serverUrlText: TextView
     private lateinit var voiceStatusText: TextView
     private lateinit var voiceWaveView: VoiceWaveView
     private lateinit var voiceToggleButton: CircularTalkButton
@@ -56,8 +54,6 @@ class MainActivity : AppCompatActivity() {
         supportActionBar?.setDisplayShowTitleEnabled(false)
 
         buildNameText = findViewById(R.id.buildNameText)
-        statusText = findViewById(R.id.statusText)
-        serverUrlText = findViewById(R.id.serverUrlText)
         voiceStatusText = findViewById(R.id.voiceStatusText)
         voiceWaveView = findViewById(R.id.voiceWaveView)
         voiceToggleButton = findViewById(R.id.voiceToggleButton)
@@ -71,7 +67,7 @@ class MainActivity : AppCompatActivity() {
 
         VoiceUi.attach(
             this,
-            statusText,
+            null,  // statusText removed
             voiceWaveView,
             voiceToggleButton,
             chatRecyclerView,
@@ -87,7 +83,6 @@ class MainActivity : AppCompatActivity() {
 
         startVoiceLoops()
         requestPermissionsAndAutoStart()
-        updateUI()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -124,24 +119,6 @@ class MainActivity : AppCompatActivity() {
 
         transport.connect()
         Timber.i("Voice loops started")
-    }
-
-    private fun updateUI() {
-        buildNameText.text = BuildConfig.BUILD_CODENAME
-        serverUrlText.text = "Server: ${if (Config.serverUrl.isBlank()) "Not configured" else Config.serverUrl}"
-
-        val selectedVoice = Config.ttsVoice ?: Config.loadVoice()
-        voiceStatusText.text = if (selectedVoice.isNullOrEmpty())
-            "Current voice: system default"
-        else
-            "Current voice: $selectedVoice"
-        Timber.i("Voice status: ${selectedVoice ?: "system default"}")
-
-        val isRunning = isServiceRunning()
-        statusText.text = if (isRunning) "Status: Running" else "Status: Stopped"
-        statusText.setTextColor(
-            if (isRunning) getColor(R.color.connected) else getColor(R.color.disconnected)
-        )
     }
 
     private fun isServiceRunning(): Boolean {
@@ -183,6 +160,5 @@ class MainActivity : AppCompatActivity() {
         } else {
             startService(intent)
         }
-        updateUI()
     }
 }
