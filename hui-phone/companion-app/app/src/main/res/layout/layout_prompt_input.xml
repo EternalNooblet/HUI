@@ -12,24 +12,44 @@
         android:paddingTop="@dimen/pk_space_2"
         android:paddingBottom="@dimen/pk_space_2">
 
-        <!-- Textarea: autosizing, min-h-[44px], w-full -->
-        <com.southpawin.companion.ui.AutoSizingEditText
-            android:id="@+id/promptInputTextarea"
+        <!-- Textarea wrap: typed text 21sp (70% of 30sp placeholder), placeholder overlay shown when empty -->
+        <FrameLayout
+            android:id="@+id/promptInputTextareaWrap"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="@dimen/pk_input_min_height"
-            android:hint="@string/prompt_input_placeholder"
-            android:textSize="@dimen/pk_text_base"
-            android:textColor="@color/pk_foreground"
-            android:textColorHint="@color/pk_muted_foreground"
-            android:background="@null"
-            android:padding="@dimen/pk_space_2"
-            android:gravity="start|top"
-            android:inputType="textMultiLine|textCapSentences"
-            android:imeOptions="actionSend"
-            android:maxLines="10"
-            android:singleLine="false"
-            android:scrollbars="none" />
+            android:layout_height="wrap_content">
+
+            <com.southpawin.companion.ui.AutoSizingEditText
+                android:id="@+id/promptInputTextarea"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/pk_input_min_height"
+                android:textSize="21sp"
+                android:textColor="@color/pk_foreground"
+                android:background="@null"
+                android:padding="@dimen/pk_space_2"
+                android:gravity="center"
+                android:inputType="textMultiLine|textCapSentences"
+                android:imeOptions="actionSend"
+                android:maxLines="10"
+                android:singleLine="false"
+                android:scrollbars="none" />
+
+            <TextView
+                android:id="@+id/promptInputPlaceholder"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="@string/prompt_input_placeholder"
+                android:textSize="30sp"
+                android:textColor="@color/pk_muted_foreground"
+                android:alpha="0.8"
+                android:gravity="center"
+                android:padding="@dimen/pk_space_2"
+                android:clickable="false"
+                android:focusable="false"
+                android:importantForAccessibility="no" />
+
+        </FrameLayout>
 
         <!-- Actions: flex items-center gap-2 -->
         <com.southpawin.companion.ui.PromptInputActions

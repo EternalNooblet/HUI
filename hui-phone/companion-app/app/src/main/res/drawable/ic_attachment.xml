@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Paperclip attachment icon — matches send icon style (white fill + primary tint) -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24"
+    android:viewportWidth="16"
+    android:viewportHeight="16"
     android:tint="@color/primary">
     <path
         android:fillColor="@android:color/white"

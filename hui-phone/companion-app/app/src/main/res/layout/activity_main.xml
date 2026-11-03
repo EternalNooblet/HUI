@@ -12,6 +12,7 @@
         android:layout_height="?attr/actionBarSize"
         android:background="?attr/colorPrimary"
         app:titleTextColor="@color/pk_foreground"
+        app:contentInsetEnd="16dp"
         app:menu="@menu/menu_main">
 
         <TextView
