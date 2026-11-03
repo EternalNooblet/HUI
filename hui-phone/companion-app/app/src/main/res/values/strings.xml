@@ -36,7 +36,7 @@
     <string name="reasoning_step">Reasoning step</string>
 
     <!-- PromptInput strings -->
-    <string name="prompt_input_placeholder">Ask prompt-kit…</string>
+    <string name="prompt_input_placeholder">Ask Hermes…</string>
     <string name="prompt_input_attachment_tooltip">Upload File</string>
     <string name="prompt_input_send_tooltip">Send</string>
 
