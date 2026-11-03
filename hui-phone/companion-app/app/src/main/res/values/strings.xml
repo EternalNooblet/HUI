@@ -11,4 +11,59 @@
     <string name="permission_notification_rationale">Notification access needed for proactive alerts</string>
     <string name="settings">Settings</string>
     <string name="back">Back</string>
+
+    <!-- prompt-kit Message component strings -->
+    <string name="assistant_avatar">Assistant avatar</string>
+    <string name="copy_message">Copy message</string>
+    <string name="feedback_positive">Good response</string>
+    <string name="feedback_negative">Bad response</string>
+    <string name="message_user">User message: %s</string>
+    <string name="message_assistant">Assistant message: %s</string>
+    <string name="citation_default">Source</string>
+
+    <!-- Tool call strings -->
+    <string name="tool_input_label">Input</string>
+    <string name="tool_output_label">Output</string>
+    <string name="tool_error_label">Error</string>
+    <string name="tool_processing">Processing tool call…</string>
+    <string name="tool_state_streaming">Processing</string>
+    <string name="tool_state_ready">Ready</string>
+    <string name="tool_state_done">Completed</string>
+    <string name="tool_state_error">Error</string>
+    <string name="tool_call_id_format">Call ID: %s</string>
+
+    <!-- Reasoning strings -->
+    <string name="reasoning_step">Reasoning step</string>
+
+    <!-- PromptInput strings -->
+    <string name="prompt_input_placeholder">Ask prompt-kit…</string>
+    <string name="prompt_input_attachment_tooltip">Upload File</string>
+    <string name="prompt_input_send_tooltip">Send</string>
+
+    <!-- Voice strings -->
+    <string name="prompt_input_voice_tooltip">Record voice</string>
+
+    <!-- ThinkingBar strings -->
+    <string name="thinking_default">Thinking</string>
+    <string name="thinking_stop_label">Answer now</string>
+
+    <!-- Loader strings -->
+    <string name="loader_default">Loading</string>
+
+    <!-- SystemBanner strings -->
+    <string name="system_banner_icon">System banner icon</string>
+    <string name="system_banner_default">System message</string>
+    <string name="system_banner_dismiss">Dismiss</string>
+    <string name="system_banner_connected">Connected to server</string>
+    <string name="system_banner_disconnected">Disconnected from server</string>
+    <string name="system_banner_reconnecting">Reconnecting…</string>
+
+    <!-- Attachment strings -->
+    <string name="attachment_preview_thumbnail">Attachment thumbnail</string>
+    <string name="attachment_preview_default">Attachment</string>
+    <string name="attachment_remove">Remove attachment</string>
+
+    <!-- Image strings -->
+    <string name="image_message_content">Image</string>
+    <string name="image_load_error">Failed to load image</string>
 </resources>

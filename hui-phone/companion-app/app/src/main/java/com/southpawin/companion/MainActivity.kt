@@ -17,26 +17,34 @@ import com.southpawin.companion.BuildConfig
 import com.southpawin.companion.event.EventBus
 import com.southpawin.companion.transport.Transport
 import com.southpawin.companion.transport.CommandExecutor
-import com.southpawin.companion.voice.VoiceWaveView
-import com.southpawin.companion.voice.CircularTalkButton
+import com.southpawin.companion.ui.ChatRecyclerView
+import com.southpawin.companion.ui.PromptInputLayout
+import com.southpawin.companion.ui.SystemBannerView
+import com.southpawin.companion.ui.AttachmentPicker
+import com.southpawin.companion.ui.StickToBottomFab
 import com.southpawin.companion.voice.VoiceUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import okhttp3.MediaType
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.Response
 import timber.log.Timber
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var voiceStatusText: TextView
-    private lateinit var voiceWaveView: VoiceWaveView
-    private lateinit var voiceToggleButton: CircularTalkButton
     private lateinit var buildNameText: TextView
-    private lateinit var chatRecyclerView: androidx.recyclerview.widget.RecyclerView
-    private lateinit var chatInputContainer: android.view.View
-    private lateinit var chatInputEditText: android.widget.EditText
-    private lateinit var chatSendButton: android.widget.ImageButton
+    private lateinit var chatRecyclerView: ChatRecyclerView
+    private lateinit var promptInputLayout: PromptInputLayout
+    private lateinit var systemBannerView: SystemBannerView
+    private lateinit var stickToBottomFab: StickToBottomFab
+    private lateinit var attachmentPicker: AttachmentPicker
 
     private val eventBus = EventBus()
     private lateinit var transport: Transport
@@ -54,28 +62,60 @@ class MainActivity : AppCompatActivity() {
         supportActionBar?.setDisplayShowTitleEnabled(false)
 
         buildNameText = findViewById(R.id.buildNameText)
-        voiceStatusText = findViewById(R.id.voiceStatusText)
-        voiceWaveView = findViewById(R.id.voiceWaveView)
-        voiceToggleButton = findViewById(R.id.voiceToggleButton)
         chatRecyclerView = findViewById(R.id.chatRecyclerView)
-        chatInputContainer = findViewById(R.id.chatInputContainer)
-        chatInputEditText = findViewById(R.id.chatInputEditText)
-        chatSendButton = findViewById(R.id.chatSendButton)
+        promptInputLayout = findViewById(R.id.promptInputLayout)
+        systemBannerView = findViewById(R.id.systemBannerView)
+        stickToBottomFab = findViewById(R.id.stickToBottomFab)
 
         commandExecutor = CommandExecutor(this)
         transport = Transport(this, eventBus, commandExecutor)
 
+        // --- Session 7: new component wiring ---
+
+        // SystemBannerView: show connection status (auto-dismiss transient states)
+        systemBannerView.setOnDismissListener {
+            Timber.i("SystemBanner dismissed by user")
+        }
+        systemBannerView.show("Connected to server", SystemBannerView.Variant.INFO, 4000)
+
+        // Transport connection state → SystemBannerView (dynamic)
+        transport.onConnectionStateChanged = { state ->
+            when (state) {
+                Transport.ConnectionState.CONNECTED ->
+                    systemBannerView.show("Connected to server", SystemBannerView.Variant.INFO, 4000)
+                Transport.ConnectionState.DISCONNECTED ->
+                    systemBannerView.show("Disconnected from server", SystemBannerView.Variant.ERROR)
+                Transport.ConnectionState.RECONNECTING ->
+                    systemBannerView.show("Reconnecting…", SystemBannerView.Variant.WARNING)
+                Transport.ConnectionState.CONNECTING ->
+                    systemBannerView.show("Connecting…", SystemBannerView.Variant.INFO, 4000)
+            }
+        }
+
+        // StickToBottomFab: attach to chat RecyclerView
+        stickToBottomFab.attach(chatRecyclerView)
+
+        // AttachmentPicker: pick → upload to server → insert markdown image into input
+        attachmentPicker = AttachmentPicker(this, promptInputLayout) { uri ->
+            Timber.i("Attachment selected: %s", uri.toString())
+            uploadAttachment(uri) { url ->
+                runOnUiThread {
+                    val filename = url.substringAfterLast('/')
+                    val currentText = promptInputLayout.getText()
+                    val newText = if (currentText.isNotEmpty()) "$currentText\n" else ""
+                    promptInputLayout.setText("$newText![$filename]($url)")
+                }
+            }
+        }
+        promptInputLayout.setOnAttachmentClickListener {
+            attachmentPicker.pickAttachment()
+        }
+
+        // VoiceUi attach — chat mode with voice input via mic button
         VoiceUi.attach(
             this,
-            null,  // statusText removed
-            voiceWaveView,
-            voiceToggleButton,
             chatRecyclerView,
-            chatInputContainer,
-            chatInputEditText,
-            chatSendButton,
-            voiceWaveView,
-            voiceStatusText,
+            promptInputLayout,
             eventBus,
             transport,
             commandExecutor
@@ -151,6 +191,62 @@ class MainActivity : AppCompatActivity() {
         } else {
             Timber.w("Permissions denied")
         }
+    }
+
+    /** Handle attachment picker result (from AttachmentPicker). */
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (attachmentPicker.onActivityResult(requestCode, resultCode, data)) {
+            return // handled by AttachmentPicker
+        }
+    }
+
+    /** Upload a picked attachment to the server, then callback with the public URL. */
+    private fun uploadAttachment(uri: android.net.Uri, callback: (String) -> Unit) {
+        // Copy content URI to a temp cache file for OkHttp
+        val cacheFile = java.io.File(cacheDir, "attachment_${System.currentTimeMillis()}")
+        cacheDir.mkdirs()
+        contentResolver.openInputStream(uri)?.use { input ->
+            java.io.FileOutputStream(cacheFile).use { output ->
+                input.copyTo(output)
+            }
+        } ?: return
+
+        val client = OkHttpClient()
+        val requestBody = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart("file", cacheFile.name,
+                RequestBody.create(null, cacheFile))
+            .build()
+
+        val uploadUrl = BuildConfig.SERVER_URL.replace("wss://", "https://") + "/upload"
+        val request = Request.Builder()
+            .url(uploadUrl)
+            .post(requestBody)
+            .build()
+
+        client.newCall(request).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
+                Timber.e(e, "Attachment upload failed")
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.use {
+                    if (!response.isSuccessful) {
+                        Timber.w("Upload failed: ${response.code}")
+                        return@use
+                    }
+                    val body = response.body?.string() ?: return@use
+                    try {
+                        val json = com.google.gson.JsonParser.parseString(body).asJsonObject
+                        val url = json.get("url").asString
+                        runOnUiThread { callback(url) }
+                    } catch (e: Exception) {
+                        Timber.e(e, "Failed to parse upload response: $body")
+                    }
+                }
+            }
+        })
     }
 
     private fun startServiceOnly() {

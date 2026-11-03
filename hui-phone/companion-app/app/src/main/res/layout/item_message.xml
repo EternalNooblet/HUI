@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Message: flex gap-3 (Avatar + Content + Actions) -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/messageRoot"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="top"
+    android:layout_marginHorizontal="@dimen/pk_space_4"
+    android:layout_marginVertical="@dimen/pk_space_2"
+    android:padding="@dimen/pk_space_2"
+    android:background="@android:color/transparent">
+
+    <!-- Avatar (assistant only) -->
+    <include
+        android:id="@+id/messageAvatarInclude"
+        layout="@layout/item_message_avatar"
+        android:visibility="gone" />
+
+    <!-- Content (markdown, citations, tool, reasoning) -->
+    <include
+        android:id="@+id/messageContentInclude"
+        layout="@layout/item_message_content" />
+
+    <!-- Actions (copy, feedback, etc.) -->
+    <include
+        android:id="@+id/messageActionsInclude"
+        layout="@layout/item_message_actions" />
+</LinearLayout>

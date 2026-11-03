@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Citation chip: SourceTrigger - chip with favicon + domain, rounded-full bg-muted -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/citationChipContainer"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="@dimen/pk_space_2"
+    android:paddingEnd="@dimen/pk_space_2"
+    android:paddingTop="@dimen/pk_space_1"
+    android:paddingBottom="@dimen/pk_space_1"
+    android:maxWidth="@dimen/pk_citation_chip_max_width"
+    android:background="@drawable/bg_citation_chip"
+    android:clickable="true"
+    android:focusable="true"
+    android:ellipsize="end"
+    android:singleLine="true">
+
+    <!-- Favicon -->
+    <ImageView
+        android:id="@+id/citationFavicon"
+        android:layout_width="@dimen/pk_step_circle_size"
+        android:layout_height="@dimen/pk_step_circle_size"
+        android:layout_marginEnd="@dimen/pk_space_1"
+        android:src="@drawable/ic_link"
+        android:scaleType="centerCrop" />
+
+    <!-- Domain text -->
+    <TextView
+        android:id="@+id/citationChipText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="@dimen/pk_text_xs"
+        android:textColor="@color/pk_muted_foreground"
+        android:fontFamily="monospace"
+        android:maxLines="1"
+        android:ellipsize="end" />
+</LinearLayout>

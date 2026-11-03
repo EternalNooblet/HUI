@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Citation popup: SourceContent - HoverCardContent with favicon, title, description -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="@dimen/pk_citation_popup_width"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_citation_popup"
+    android:padding="@dimen/pk_space_3">
+
+    <!-- Header: favicon + domain -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="@dimen/pk_space_2">
+
+    <ImageView
+        android:id="@+id/citationPopupFavicon"
+        android:layout_width="@dimen/pk_avatar_size"
+        android:layout_height="@dimen/pk_avatar_size"
+        android:layout_marginEnd="@dimen/pk_space_2"
+        android:src="@drawable/ic_link"
+        android:scaleType="centerCrop" />
+
+    <TextView
+        android:id="@+id/citationPopupDomain"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textSize="@dimen/pk_text_sm"
+        android:textColor="@color/pk_primary"
+        android:textStyle="bold"
+        android:maxLines="1"
+        android:ellipsize="end" />
+    </LinearLayout>
+
+    <!-- Title -->
+    <TextView
+        android:id="@+id/citationPopupTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="@dimen/pk_text_sm"
+        android:textColor="@color/pk_foreground"
+        android:maxLines="2"
+        android:ellipsize="end"
+        android:layout_marginBottom="@dimen/pk_space_1" />
+
+    <!-- Description -->
+    <TextView
+        android:id="@+id/citationPopupDescription"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="@dimen/pk_text_sm"
+        android:textColor="@color/pk_muted_foreground"
+        android:maxLines="2"
+        android:ellipsize="end" />
+</LinearLayout>

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Attachment preview chip shown in PromptInputActions after file selected -->
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical">
+
+    <!-- Thumbnail (image) or icon (file) -->
+    <ImageView
+        android:id="@+id/attachmentThumbnail"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginEnd="@dimen/pk_space_1"
+        android:scaleType="centerCrop"
+        android:contentDescription="@string/attachment_preview_thumbnail"
+        android:src="@drawable/ic_attachment" />
+
+    <!-- Filename -->
+    <TextView
+        android:id="@+id/attachmentFilename"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="@dimen/pk_text_xs"
+        android:textColor="@color/pk_foreground"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:text="@string/attachment_preview_default" />
+
+    <!-- Remove button -->
+    <ImageButton
+        android:id="@+id/attachmentRemove"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/pk_space_1"
+        android:src="@drawable/ic_x_circle"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/attachment_remove"
+        android:padding="@dimen/pk_space_1"
+        android:scaleType="centerInside" />
+
+</merge>

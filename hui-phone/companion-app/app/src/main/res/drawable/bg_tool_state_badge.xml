@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tool state badge background: rounded-full -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/pk_muted" />
+    <corners android:radius="@dimen/pk_radius_full" />
+</shape>

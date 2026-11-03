@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ChainOfThoughtStep: Collapsible with connector bar, circle indicator -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/reasoningStepRoot"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:layout_marginTop="@dimen/pk_space_1">
+
+    <!-- Connector bar (vertical line) + circle indicator -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:layout_marginEnd="@dimen/pk_space_3">
+
+        <!-- Top connector (hidden for first item) -->
+        <View
+            android:id="@+id/reasoningConnectorTop"
+            android:layout_width="@dimen/pk_connector_bar_width"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="@drawable/connector_bar"
+            android:visibility="gone" />
+
+        <!-- Circle indicator -->
+        <View
+            android:id="@+id/reasoningCircle"
+            android:layout_width="@dimen/pk_step_circle_size"
+            android:layout_height="@dimen/pk_step_circle_size"
+            android:background="@drawable/step_circle" />
+
+        <!-- Bottom connector (hidden for last item) -->
+        <View
+            android:id="@+id/reasoningConnectorBottom"
+            android:layout_width="@dimen/pk_connector_bar_width"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="@drawable/connector_bar"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <!-- Step content: Trigger + Collapsible Content -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <!-- Trigger: title with chevron -->
+        <LinearLayout
+            android:id="@+id/reasoningTrigger"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingVertical="@dimen/pk_space_1"
+            android:paddingHorizontal="@dimen/pk_space_2"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true">
+            <TextView
+                android:id="@+id/reasoningTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="@dimen/pk_text_sm"
+                android:textColor="@color/pk_muted_foreground" />
+            <ImageView
+                android:id="@+id/reasoningChevron"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_chevron_down"
+                android:tint="@color/pk_muted_foreground" />
+        </LinearLayout>
+
+        <!-- Content: collapsible -->
+        <LinearLayout
+            android:id="@+id/reasoningContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:paddingHorizontal="@dimen/pk_space_4"
+            android:paddingBottom="@dimen/pk_space_2">
+            <TextView
+                android:id="@+id/reasoningText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="@dimen/pk_text_sm"
+                android:textColor="@color/pk_foreground" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

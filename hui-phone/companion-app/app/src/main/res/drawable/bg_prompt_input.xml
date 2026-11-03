@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PromptInput background: rounded-3xl border border-input shadow-xs bg-background -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/pk_input_bg" />
+    <stroke android:width="1dp" android:color="@color/pk_input_border" />
+    <corners android:radius="@dimen/pk_radius_3xl" />
+</shape>

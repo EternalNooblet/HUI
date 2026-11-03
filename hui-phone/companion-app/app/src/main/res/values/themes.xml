@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Base theme using prompt-kit design tokens -->
     <style name="Theme.CompanionApp" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
-        <item name="colorPrimary">@color/primary</item>
-        <item name="colorPrimaryVariant">@color/primary_dark</item>
-        <item name="colorOnPrimary">@color/text_primary</item>
-        <item name="colorSecondary">@color/accent</item>
-        <item name="colorSecondaryVariant">@color/accent</item>
-        <item name="colorOnSecondary">@color/text_primary</item>
-        <item name="android:colorBackground">@color/background</item>
-        <item name="colorSurface">@color/surface</item>
-        <item name="colorOnSurface">@color/text_primary</item>
+        <!-- prompt-kit color mappings -->
+        <item name="colorPrimary">@color/pk_primary</item>
+        <item name="colorPrimaryVariant">@color/pk_primary</item>
+        <item name="colorOnPrimary">@color/pk_primary_foreground</item>
+        <item name="colorSecondary">@color/pk_primary</item>
+        <item name="colorSecondaryVariant">@color/pk_primary</item>
+        <item name="colorOnSecondary">@color/pk_primary_foreground</item>
+        <item name="android:colorBackground">@color/pk_background</item>
+        <item name="colorSurface">@color/pk_card</item>
+        <item name="colorOnSurface">@color/pk_card_foreground</item>
+        <item name="colorError">@color/pk_destructive</item>
+        <item name="colorOnError">@color/pk_primary_foreground</item>
     </style>
 
     <style name="Theme.CompanionApp.NoActionBar" parent="Theme.CompanionApp">
@@ -17,8 +21,58 @@
         <item name="windowNoTitle">true</item>
     </style>
 
+    <!-- Circle shape for avatar -->
     <style name="ShapeAppearanceOverlay.Circle" parent="">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">50%</item>
+    </style>
+
+    <!-- Citation chip text appearance: text-xs, truncate, tabular-nums -->
+    <style name="TextAppearance.PromptKit.CitationChip" parent="TextAppearance.MaterialComponents.Chip">
+        <item name="android:textSize">@dimen/pk_text_xs</item>
+        <item name="android:textColor">@color/pk_muted_foreground</item>
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+
+    <!-- PromptInput textarea style -->
+    <style name="TextAppearance.PromptKit.PromptInputTextarea" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:textSize">@dimen/pk_text_base</item>
+        <item name="android:textColor">@color/pk_foreground</item>
+        <item name="android:textColorHint">@color/pk_muted_foreground</item>
+    </style>
+
+    <!-- Tool call trigger button style -->
+    <style name="Widget.PromptKit.ToolCallTrigger" parent="Widget.MaterialComponents.Button.TextButton">
+        <item name="android:textSize">@dimen/pk_text_sm</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:gravity">start|center_vertical</item>
+        <item name="android:padding">@dimen/pk_space_3</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+    </style>
+
+    <!-- Tool state badge style -->
+    <style name="Widget.PromptKit.ToolStateBadge">
+        <item name="android:textSize">@dimen/pk_text_xs</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:paddingHorizontal">@dimen/pk_space_2</item>
+        <item name="android:paddingVertical">@dimen/pk_space_1</item>
+        <item name="android:background">@drawable/bg_tool_state_badge</item>
+    </style>
+
+    <!-- System banner style -->
+    <style name="Widget.PromptKit.SystemBanner" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/pk_surface_raised</item>
+        <item name="strokeColor">@color/pk_border</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="cardCornerRadius">@dimen/pk_radius_md</item>
+    </style>
+
+    <!-- Base Widget.PromptKit style -->
+    <style name="Widget.PromptKit" parent="Widget.MaterialComponents.Chip.Action">
+        <item name="chipBackgroundColor">@color/pk_muted</item>
+        <item name="chipCornerRadius">@dimen/pk_radius_full</item>
     </style>
 </resources>

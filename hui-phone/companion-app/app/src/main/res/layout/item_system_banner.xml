@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SystemBannerView: dismissible banner at top of chat list (prompt-kit SystemMessage) -->
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/systemBannerCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        style="@style/Widget.PromptKit.SystemBanner"
+        android:layout_marginHorizontal="@dimen/pk_space_4"
+        android:layout_marginVertical="@dimen/pk_space_2"
+        android:padding="@dimen/pk_space_3">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- Icon -->
+            <ImageView
+                android:id="@+id/systemBannerIcon"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginEnd="@dimen/pk_space_2"
+                android:contentDescription="@string/system_banner_icon"
+                android:src="@drawable/ic_notification" />
+
+            <!-- Message -->
+            <TextView
+                android:id="@+id/systemBannerText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="@dimen/pk_text_sm"
+                android:textColor="@color/pk_card_foreground"
+                android:text="@string/system_banner_default" />
+
+            <!-- Dismiss button -->
+            <ImageButton
+                android:id="@+id/systemBannerDismiss"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_x_circle"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/system_banner_dismiss"
+                android:padding="@dimen/pk_space_1"
+                android:scaleType="centerInside" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</merge>

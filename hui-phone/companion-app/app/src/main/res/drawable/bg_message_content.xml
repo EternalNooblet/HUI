@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MessageContent background: rounded-lg bg-secondary (muted) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/pk_message_bg" />
+    <corners android:radius="@dimen/pk_radius_lg" />
+</shape>

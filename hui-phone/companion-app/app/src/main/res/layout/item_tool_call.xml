@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tool call card: Collapsible with state icon, badge, JSON input/output -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/toolCallRoot"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_tool_card"
+    android:layout_marginTop="@dimen/pk_space_3">
+
+    <!-- Trigger: Button with state icon, tool name, badge, chevron -->
+    <Button
+        android:id="@+id/toolCallTrigger"
+        style="@style/Widget.PromptKit.ToolCallTrigger"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="start|center_vertical"
+        android:padding="@dimen/pk_space_3"
+        android:textAllCaps="false"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
+        android:drawablePadding="@dimen/pk_space_2">
+        <ImageView
+            android:id="@+id/toolCallChevron"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_chevron_down"
+            android:layout_gravity="end"
+            android:tint="@color/pk_muted_foreground" />
+    </Button>
+
+    <!-- Content: Collapsible panel with input/output JSON -->
+    <LinearLayout
+        android:id="@+id/toolCallContent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:padding="@dimen/pk_space_3"
+        android:background="@color/pk_tool_bg">
+
+        <!-- Input section -->
+        <LinearLayout
+            android:id="@+id/toolCallInputSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/tool_input_label"
+                android:textSize="@dimen/pk_text_sm"
+                android:textColor="@color/pk_muted_foreground"
+                android:layout_marginBottom="@dimen/pk_space_1" />
+            <TextView
+                android:id="@+id/toolCallInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="@dimen/pk_text_code"
+                android:textColor="@color/pk_foreground"
+                android:fontFamily="monospace"
+                android:background="@color/pk_tool_bg"
+                android:padding="@dimen/pk_space_2" />
+        </LinearLayout>
+
+        <!-- Output section -->
+        <LinearLayout
+            android:id="@+id/toolCallOutputSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:layout_marginTop="@dimen/pk_space_3">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/tool_output_label"
+                android:textSize="@dimen/pk_text_sm"
+                android:textColor="@color/pk_muted_foreground"
+                android:layout_marginBottom="@dimen/pk_space_1" />
+            <TextView
+                android:id="@+id/toolCallOutput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxHeight="240dp"
+                android:textSize="@dimen/pk_text_code"
+                android:textColor="@color/pk_foreground"
+                android:fontFamily="monospace"
+                android:background="@color/pk_tool_bg"
+                android:padding="@dimen/pk_space_2" />
+        </LinearLayout>
+
+        <!-- Error section -->
+        <LinearLayout
+            android:id="@+id/toolCallErrorSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:layout_marginTop="@dimen/pk_space_3">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/tool_error_label"
+                android:textSize="@dimen/pk_text_sm"
+                android:textColor="@color/pk_state_error_text"
+                android:layout_marginBottom="@dimen/pk_space_1" />
+            <TextView
+                android:id="@+id/toolCallError"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="@dimen/pk_text_sm"
+                android:textColor="@color/pk_state_error_text"
+                android:background="@color/pk_state_error_bg"
+                android:padding="@dimen/pk_space_2" />
+        </LinearLayout>
+
+        <!-- Processing state -->
+        <TextView
+            android:id="@+id/toolCallProcessing"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/tool_processing"
+            android:textSize="@dimen/pk_text_sm"
+            android:textColor="@color/pk_muted_foreground"
+            android:visibility="gone"
+            android:layout_marginTop="@dimen/pk_space_2" />
+
+        <!-- Tool call ID -->
+        <View
+            android:id="@+id/toolCallDivider"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/pk_border"
+            android:visibility="gone"
+            android:layout_marginTop="@dimen/pk_space_2" />
+        <TextView
+            android:id="@+id/toolCallId"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="@dimen/pk_text_xs"
+            android:textColor="@color/pk_muted_foreground"
+            android:visibility="gone"
+            android:layout_marginTop="@dimen/pk_space_2"
+            android:paddingTop="@dimen/pk_space_2" />
+    </LinearLayout>
+</LinearLayout>

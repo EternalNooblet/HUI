@@ -3,17 +3,33 @@ package com.southpawin.companion.db
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
 class MessageRepository(private val dao: MessageDao) {
 
-    suspend fun insertMessage(role: String, text: String, voiceSession: String? = null) {
+    suspend fun insertMessage(
+        role: String,
+        content: String,
+        voiceSession: String? = null,
+        toolCallsJson: String? = null,
+        citationsJson: String? = null,
+        reasoningJson: String? = null,
+        messageType: String = "text",
+        isStreaming: Boolean = false,
+        streamMode: String = "typewriter",
+        streamSpeed: Int = 20
+    ) {
         withContext(Dispatchers.IO) {
             val entity = MessageEntity(
                 role = role,
-                text = text,
-                voiceSession = voiceSession
+                content = content,
+                voiceSession = voiceSession,
+                toolCallsJson = toolCallsJson,
+                citationsJson = citationsJson,
+                reasoningJson = reasoningJson,
+                isStreaming = isStreaming,
+                streamMode = streamMode,
+                streamSpeed = streamSpeed
             )
             dao.insert(entity)
         }

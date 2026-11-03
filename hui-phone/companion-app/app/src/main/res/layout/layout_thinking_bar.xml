@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ThinkingBar: flex w-full items-center justify-between -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:padding="@dimen/pk_space_2">
+
+    <!-- Clickable area: TextShimmer + ChevronRight -->
+    <Button
+        android:id="@+id/thinkingClickBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="?attr/selectableItemBackground"
+        android:padding="@dimen/pk_space_2"
+        android:visibility="gone">
+        
+        <com.southpawin.companion.ui.TextShimmerTextView
+            android:id="@+id/thinkingShimmerText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textStyle="bold" />
+        
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_chevron_right"
+            android:tint="@color/pk_muted_foreground"
+            android:layout_marginStart="@dimen/pk_space_1" />
+    </Button>
+
+    <!-- Stop button: dotted border-b text-sm -->
+    <Button
+        android:id="@+id/thinkingStopBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/thinking_stop_label"
+        android:textSize="@dimen/pk_text_sm"
+        android:background="@drawable/bg_thinking_stop_button"
+        android:padding="@dimen/pk_space_2"
+        android:visibility="gone" />
+</LinearLayout>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ChainOfThought/Steps circle indicator: size-2 fill-current (primary) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/pk_primary" />
+    <size
+        android:width="@dimen/pk_step_circle_size"
+        android:height="@dimen/pk_step_circle_size" />
+</shape>

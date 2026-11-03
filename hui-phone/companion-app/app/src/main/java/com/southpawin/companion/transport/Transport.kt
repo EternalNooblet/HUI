@@ -31,12 +31,29 @@ class Transport(
     private var reconnectDelay = 1000L
     private var isConnecting = false
 
+    /** True when a WebSocket session is currently open. */
+    val isConnected: Boolean
+        get() = webSocket != null
+
+    enum class ConnectionState { CONNECTING, CONNECTED, DISCONNECTED, RECONNECTING }
+    private var connectionState = ConnectionState.DISCONNECTED
+    var onConnectionStateChanged: ((ConnectionState) -> Unit)? = null
+
+    private fun setConnectionState(state: ConnectionState) {
+        if (connectionState != state) {
+            connectionState = state
+            Timber.i("Transport state: $state")
+            onConnectionStateChanged?.invoke(state)
+        }
+    }
+
     private val listener = object : WebSocketListener() {
         override fun onOpen(webSocket: WebSocket, response: Response) {
             Timber.i("WSS connected securely, protocol: ${response.header("Sec-WebSocket-Protocol")}, code: ${response.code}")
             this@Transport.webSocket = webSocket
             reconnectDelay = 1000
             isConnecting = false
+            setConnectionState(ConnectionState.CONNECTED)
             sendHello()
         }
 
@@ -64,12 +81,14 @@ class Transport(
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
             Timber.w("WSS closed: $code $reason")
             this@Transport.webSocket = null
+            setConnectionState(ConnectionState.DISCONNECTED)
             if (!isConnecting) scheduleReconnect()
         }
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
             Timber.e(t, "WSS failure, response: ${response?.code}")
             this@Transport.webSocket = null
+            setConnectionState(ConnectionState.DISCONNECTED)
             if (!isConnecting) scheduleReconnect()
         }
     }
@@ -81,6 +100,7 @@ class Transport(
             return
         }
         isConnecting = true
+        setConnectionState(ConnectionState.CONNECTING)
         Timber.i("Connecting securely to ${Config.wsUrl}")
 
         val request = Request.Builder()
@@ -107,6 +127,7 @@ class Transport(
     }
 
     private fun scheduleReconnect() {
+        setConnectionState(ConnectionState.RECONNECTING)
         Timber.i("Scheduling reconnect in ${reconnectDelay}ms")
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ connect() }, reconnectDelay)
         reconnectDelay = (reconnectDelay * 2).coerceAtMost(30000)
