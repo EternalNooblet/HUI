@@ -8,6 +8,9 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.TextView
+import android.widget.ImageButton
+import android.text.TextWatcher
+import android.text.Editable
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
@@ -53,77 +56,100 @@ class MainActivity : AppCompatActivity() {
     private var voiceLoopStarted = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+            super.onCreate(savedInstanceState)
+            setContentView(R.layout.activity_main)
 
-        // Setup toolbar
-        val toolbar = findViewById<Toolbar>(R.id.toolbar)
-        setSupportActionBar(toolbar)
-        supportActionBar?.setDisplayShowTitleEnabled(false)
+            // Setup toolbar
+            val toolbar = findViewById<Toolbar>(R.id.toolbar)
+            setSupportActionBar(toolbar)
+            supportActionBar?.setDisplayShowTitleEnabled(false)
 
-        buildNameText = findViewById(R.id.buildNameText)
-        chatRecyclerView = findViewById(R.id.chatRecyclerView)
-        promptInputLayout = findViewById(R.id.promptInputLayout)
-        systemBannerView = findViewById(R.id.systemBannerView)
-        stickToBottomFab = findViewById(R.id.stickToBottomFab)
+            buildNameText = findViewById(R.id.buildNameText)
+            chatRecyclerView = findViewById(R.id.chatRecyclerView)
+            promptInputLayout = findViewById(R.id.promptInputLayout)
+            systemBannerView = findViewById(R.id.systemBannerView)
+            stickToBottomFab = findViewById(R.id.stickToBottomFab)
 
-        commandExecutor = CommandExecutor(this)
-        transport = Transport(this, eventBus, commandExecutor)
+            commandExecutor = CommandExecutor(this)
+            transport = Transport(this, eventBus, commandExecutor)
 
-        // --- Session 7: new component wiring ---
+            // --- Session 7: new component wiring ---
 
-        // SystemBannerView: show connection status (auto-dismiss transient states)
-        systemBannerView.setOnDismissListener {
-            Timber.i("SystemBanner dismissed by user")
-        }
-        systemBannerView.show("Connected to server", SystemBannerView.Variant.INFO, 4000)
-
-        // Transport connection state → SystemBannerView (dynamic)
-        transport.onConnectionStateChanged = { state ->
-            when (state) {
-                Transport.ConnectionState.CONNECTED ->
-                    systemBannerView.show("Connected to server", SystemBannerView.Variant.INFO, 4000)
-                Transport.ConnectionState.DISCONNECTED ->
-                    systemBannerView.show("Disconnected from server", SystemBannerView.Variant.ERROR)
-                Transport.ConnectionState.RECONNECTING ->
-                    systemBannerView.show("Reconnecting…", SystemBannerView.Variant.WARNING)
-                Transport.ConnectionState.CONNECTING ->
-                    systemBannerView.show("Connecting…", SystemBannerView.Variant.INFO, 4000)
+            // SystemBannerView: show connection status (auto-dismiss transient states)
+            systemBannerView.setOnDismissListener {
+                Timber.i("SystemBanner dismissed by user")
             }
-        }
+            systemBannerView.show("Connected to server", SystemBannerView.Variant.INFO, 4000)
 
-        // StickToBottomFab: attach to chat RecyclerView
-        stickToBottomFab.attach(chatRecyclerView)
-
-        // AttachmentPicker: pick → upload to server → insert markdown image into input
-        attachmentPicker = AttachmentPicker(this, promptInputLayout) { uri ->
-            Timber.i("Attachment selected: %s", uri.toString())
-            uploadAttachment(uri) { url ->
-                runOnUiThread {
-                    val filename = url.substringAfterLast('/')
-                    val currentText = promptInputLayout.getText()
-                    val newText = if (currentText.isNotEmpty()) "$currentText\n" else ""
-                    promptInputLayout.setText("$newText![$filename]($url)")
+            // Transport connection state → SystemBannerView (dynamic)
+            transport.onConnectionStateChanged = { state ->
+                when (state) {
+                    Transport.ConnectionState.CONNECTED ->
+                        systemBannerView.show("Connected to server", SystemBannerView.Variant.INFO, 4000)
+                    Transport.ConnectionState.DISCONNECTED ->
+                        systemBannerView.show("Disconnected from server", SystemBannerView.Variant.ERROR)
+                    Transport.ConnectionState.RECONNECTING ->
+                        systemBannerView.show("Reconnecting…", SystemBannerView.Variant.WARNING)
+                    Transport.ConnectionState.CONNECTING ->
+                        systemBannerView.show("Connecting…", SystemBannerView.Variant.INFO, 4000)
                 }
             }
-        }
-        promptInputLayout.setOnAttachmentClickListener {
-            attachmentPicker.pickAttachment()
-        }
 
-        // VoiceUi attach — chat mode with voice input via mic button
-        VoiceUi.attach(
-            this,
-            chatRecyclerView,
-            promptInputLayout,
-            eventBus,
-            transport,
-            commandExecutor
-        )
+            // StickToBottomFab: attach to chat RecyclerView
+            stickToBottomFab.attach(chatRecyclerView)
 
-        startVoiceLoops()
-        requestPermissionsAndAutoStart()
-    }
+            // AttachmentPicker: pick → upload to server → insert markdown image into input
+            attachmentPicker = AttachmentPicker(this, promptInputLayout) { uri ->
+                Timber.i("Attachment selected: %s", uri.toString())
+                uploadAttachment(uri) { url ->
+                    runOnUiThread {
+                        val filename = url.substringAfterLast('/')
+                        val currentText = promptInputLayout.getText()
+                        val newText = if (currentText.isNotEmpty()) "$currentText\n" else ""
+                        promptInputLayout.setText("$newText![$filename]($url)")
+                    }
+                }
+            }
+            promptInputLayout.setOnAttachmentClickListener {
+                attachmentPicker.pickAttachment()
+            }
+
+            // VoiceUi attach — chat mode with voice input via mic button
+            VoiceUi.attach(
+                this,
+                chatRecyclerView,
+                promptInputLayout,
+                eventBus,
+                transport,
+                commandExecutor
+            )
+
+            // Send button enable/disable based on input text
+            val sendBtn = findViewById<ImageButton>(R.id.promptInputSendBtn)
+            val textarea = promptInputLayout.getTextarea()
+            textarea?.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    val hasText = s?.isNotEmpty() == true
+                    sendBtn.isEnabled = hasText
+                    sendBtn.alpha = if (hasText) 1.0f else 0.5f
+                }
+            })
+
+            // VoiceUi attach — chat mode with voice input via mic button
+            VoiceUi.attach(
+                this,
+                chatRecyclerView,
+                promptInputLayout,
+                eventBus,
+                transport,
+                commandExecutor
+            )
+
+            startVoiceLoops()
+            requestPermissionsAndAutoStart()
+        }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)
