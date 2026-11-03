@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Loader2 icon for streaming state (spinner) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@color/pk_state_streaming_text"
+        android:pathData="M12,4V2M12,22V20M4.93,4.93L3.51,3.51M20.49,20.49L21.91,21.91M2,12H4M20,12H22M4.93,19.07L3.51,20.49M20.49,3.51L21.91,4.93"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

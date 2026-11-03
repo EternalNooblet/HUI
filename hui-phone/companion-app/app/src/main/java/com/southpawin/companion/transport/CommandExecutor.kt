@@ -14,18 +14,22 @@ class CommandExecutor(private val context: Context) {
         return when (command.command) {
             "speak" -> {
                 command.payload.text?.let { text ->
-                    val voice = command.payload.voice ?: Config.loadVoice()
-                    val pitch = command.payload.pitch ?: Config.loadPitch()
-                    Timber.i("Speaking: $text")
-                    val tts = TextToSpeech(context, object : TextToSpeech.OnInitListener {
-                        override fun onInit(status: Int) {
-                            if (status == TextToSpeech.SUCCESS) {
-                                this@CommandExecutor.speakText(text, voice, pitch)
-                            } else {
-                                Timber.e("TTS initialization failed: $status")
+                    if (VoiceUi.voiceRecording) {
+                        VoiceUi.handleVoiceTranscript(text, command.payload.voiceSession ?: "")
+                    } else {
+                        val voice = command.payload.voice ?: Config.loadVoice()
+                        val pitch = command.payload.pitch ?: Config.loadPitch()
+                        Timber.i("Speaking: $text")
+                        val tts = TextToSpeech(context, object : TextToSpeech.OnInitListener {
+                            override fun onInit(status: Int) {
+                                if (status == TextToSpeech.SUCCESS) {
+                                    this@CommandExecutor.speakText(text, voice, pitch)
+                                } else {
+                                    Timber.e("TTS initialization failed: $status")
+                                }
                             }
-                        }
-                    })
+                        })
+                    }
                 }
                 Result.Success()
             }

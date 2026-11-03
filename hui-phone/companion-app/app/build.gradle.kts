@@ -122,6 +122,9 @@ dependencies {
 
     // Logging
     implementation("com.jakewharton.timber:timber:5.0.1")
+
+    // Image loading for ImageMessageView (prompt-kit Image component)
+    implementation("io.coil-kt:coil:2.5.0")
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {

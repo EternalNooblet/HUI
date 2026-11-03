@@ -80,6 +80,22 @@ adb shell am start-foreground-service \
 | `AttentionDetector.kt` | Gaze detection stub (2s tick log only) |
 | `NotificationListener.kt` | Notification monitoring (requires user grant) |
 
+## Chat UI (prompt-kit)
+
+The app includes a dual-mode chat interface ported from [prompt-kit](https://github.com/ibelick/prompt-kit):
+
+| Feature | Implementation |
+|---------|----------------|
+| **Dual-mode** | Circular button at top center; swipe left/right to switch Voice ↔ Text Chat |
+| **Markdown rendering** | GFM + breaks, split into blocks with per-block memoization |
+| **Code blocks** | Shiki-style highlighting (github-light theme), `rounded-xl`, `text-[13px]` |
+| **Tool calls** | Collapsible cards with state icons (Loader2/Settings/CheckCircle/XCircle) and badges (Processing/Ready/Completed/Error) |
+| **Citations** | HoverCard pattern: chip (favicon + domain) → long-press/hover → popup (title + description) |
+| **Reasoning** | Collapsible ChainOfThought steps with connector bar (`bg-primary/20`), Circle indicators, `defaultOpen=true` |
+| **Streaming** | Typewriter (speed 20, configurable chunkSize) + Fade mode (word segments, fadeDuration/segmentDelay) |
+| **Loaders** | 11 variants: circular, classic, pulse, pulse-dot, dots, typing, wave, bars, terminal, text-blink, text-shimmer, loading-dots |
+| **Input** | `rounded-3xl` MaterialCardView, autosizing textarea (min 44dp), action chips with tooltips |
+
 ## Protocol (WSS)
 
 - Client hello: `{"type":"hello","device_id":"...","capabilities":[...]}`

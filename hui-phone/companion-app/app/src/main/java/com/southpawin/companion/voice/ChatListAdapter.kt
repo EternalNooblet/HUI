@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
@@ -43,9 +44,12 @@ class ChatListAdapter(
         holder.bubbleContainer.setBackgroundResource(bubbleBg)
 
         // Align: user messages right, assistant left
-        val params = holder.bubbleContainer.layoutParams as LinearLayout.LayoutParams
-        params.gravity = if (isUser) Gravity.END else Gravity.START
-        holder.bubbleContainer.layoutParams = params
+        val lp = FrameLayout.LayoutParams(
+            holder.bubbleContainer.layoutParams.width,
+            holder.bubbleContainer.layoutParams.height
+        )
+        lp.gravity = if (isUser) Gravity.END else Gravity.START
+        holder.bubbleContainer.layoutParams = lp
 
         // Text color
         holder.messageText.setTextColor(

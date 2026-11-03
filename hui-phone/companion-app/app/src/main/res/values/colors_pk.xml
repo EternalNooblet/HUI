@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Blockquote left border color -->
+    <color name="pk_blockquote_border">@color/pk_primary</color>
+    <!-- Code block text color (card-foreground) -->
+    <color name="pk_code_foreground">@color/pk_card_foreground</color>
+    <!-- Action button background (subtle) -->
+    <color name="pk_action_button_bg">#2A2A2E</color>
+</resources>

@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- prompt-kit / shadcn/ui Design Tokens. Exact mappings from prompt-kit Tailwind + CSS variable system. Do not modify values without updating the plan. -->
+<resources>
+    <!-- Colors (CSS variable names preserved in comments) -->
+    <!-- foreground -->
+    <color name="pk_foreground">#FAFAFA</color>
+    <!-- muted-foreground -->
+    <color name="pk_muted_foreground">#A1A1AA</color>
+    <!-- primary -->
+    <color name="pk_primary">#3B82F6</color>
+    <!-- primary-foreground -->
+    <color name="pk_primary_foreground">#FFFFFF</color>
+    <!-- border -->
+    <color name="pk_border">#3F3F46</color>
+    <!-- background -->
+    <color name="pk_background">#0A0A0B</color>
+    <!-- card -->
+    <color name="pk_card">#18181B</color>
+    <!-- card-foreground -->
+    <color name="pk_card_foreground">#FAFAFA</color>
+    <!-- muted -->
+    <color name="pk_muted">#27272A</color>
+    <!-- surface-raised (shadcn/ui doesn't have this, but we need it for elevated surfaces) -->
+    <color name="pk_surface_raised">#27272A</color>
+    <!-- destructive -->
+    <color name="pk_destructive">#EF4444</color>
+    <!-- ring -->
+    <color name="pk_ring">#3B82F6</color>
+
+    <!-- Semantic Aliases for Components -->
+    <!-- MessageContent: bg-secondary (muted) + prose text-foreground (foreground) -->
+    <color name="pk_message_bg">@color/pk_muted</color>
+    <color name="pk_message_text">@color/pk_foreground</color>
+
+    <!-- PromptInput: bg-background (background) + border-input (border) + shadow-xs -->
+    <color name="pk_input_bg">@color/pk_background</color>
+    <color name="pk_input_border">@color/pk_border</color>
+
+    <!-- CodeBlock: bg-card (card) + border-border (border) -->
+    <color name="pk_code_bg">@color/pk_card</color>
+    <color name="pk_code_border">@color/pk_border</color>
+
+    <!-- Tool: bg-background (background) + border-border (border) -->
+    <color name="pk_tool_bg">@color/pk_background</color>
+    <color name="pk_tool_border">@color/pk_border</color>
+
+    <!-- HoverCard/Source: bg-muted (muted) -->
+    <color name="pk_hover_bg">@color/pk_muted</color>
+    <color name="pk_citation_chip_bg">@color/pk_muted</color>
+
+    <!-- Tool State Badges (exact from prompt-kit/tool.tsx) -->
+    <!-- input-streaming: bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 -->
+    <color name="pk_state_streaming_bg">#1E3A5F</color>
+    <color name="pk_state_streaming_text">#60A5FA</color>
+    <color name="pk_state_streaming_icon">#60A5FA</color>
+
+    <!-- input-available: bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 -->
+    <color name="pk_state_ready_bg">#7C2D12</color>
+    <color name="pk_state_ready_text">#FBBF24</color>
+    <color name="pk_state_ready_icon">#FBBF24</color>
+
+    <!-- output-available: bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 -->
+    <color name="pk_state_done_bg">#064E3B</color>
+    <color name="pk_state_done_text">#34D399</color>
+    <color name="pk_state_done_icon">#34D399</color>
+
+    <!-- output-error: bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 -->
+    <color name="pk_state_error_bg">#7F1D1D</color>
+    <color name="pk_state_error_text">#F87171</color>
+    <color name="pk_state_error_icon">#F87171</color>
+
+    <!-- ChainOfThought / Steps Connector -->
+    <!-- bg-primary/20 -->
+    <color name="pk_connector_bar">#3B82F633</color>
+
+    <!-- Radii (exact from prompt-kit Tailwind) -->
+    <!-- rounded-sm -->
+    <dimen name="pk_radius_sm">4dp</dimen>
+    <!-- rounded-md -->
+    <dimen name="pk_radius_md">8dp</dimen>
+    <!-- rounded-lg -->
+    <dimen name="pk_radius_lg">12dp</dimen>
+    <!-- rounded-xl -->
+    <dimen name="pk_radius_xl">16dp</dimen>
+    <!-- rounded-3xl -->
+    <dimen name="pk_radius_3xl">24dp</dimen>
+    <!-- rounded-full -->
+    <dimen name="pk_radius_full">9999dp</dimen>
+
+    <!-- Spacing (4dp base unit) -->
+    <dimen name="pk_space_1">4dp</dimen>
+    <dimen name="pk_space_2">8dp</dimen>
+    <dimen name="pk_space_3">12dp</dimen>
+    <dimen name="pk_space_4">16dp</dimen>
+    <dimen name="pk_space_5">20dp</dimen>
+    <dimen name="pk_space_6">24dp</dimen>
+    <dimen name="pk_space_8">32dp</dimen>
+
+    <!-- Typography (exact from prompt-kit) -->
+    <!-- text-xs -->
+    <dimen name="pk_text_xs">11sp</dimen>
+    <!-- text-sm -->
+    <dimen name="pk_text_sm">13sp</dimen>
+    <!-- text-base -->
+    <dimen name="pk_text_base">15sp</dimen>
+    <!-- text-lg -->
+    <dimen name="pk_text_lg">17sp</dimen>
+    <!-- text-xl -->
+    <dimen name="pk_text_xl">20sp</dimen>
+    <!-- text-[13px] for code blocks -->
+    <dimen name="pk_text_code">13sp</dimen>
+
+    <!-- Shadows -->
+    <!-- shadow-xs -->
+    <dimen name="pk_shadow_xs">1dp</dimen>
+
+    <!-- Animation Durations -->
+    <!-- transition-colors duration-150 -->
+    <integer name="pk_duration_fast">150</integer>
+    <!-- default transitions -->
+    <integer name="pk_duration_normal">200</integer>
+    <!-- collapsible, larger transitions -->
+    <integer name="pk_duration_slow">300</integer>
+    <!-- animate-[shimmer_4s_infinite_linear] -->
+    <integer name="pk_shimmer_duration">4000</integer>
+
+    <!-- Component-Specific Dimensions -->
+    <!-- PromptInputTextarea min-h-[44px] -->
+    <dimen name="pk_input_min_height">44dp</dimen>
+    <!-- MessageAvatar h-8 w-8 -->
+    <dimen name="pk_avatar_size">32dp</dimen>
+    <!-- CodeBlock text-[13px] [>pre]:px-4 [>pre]:py-4 -->
+    <dimen name="pk_code_padding_horizontal">16dp</dimen>
+    <dimen name="pk_code_padding_vertical">16dp</dimen>
+    <!-- ChainOfThought connector bar w-[2px] -->
+    <dimen name="pk_connector_bar_width">2dp</dimen>
+    <!-- ChainOfThought Circle size-2 -->
+    <dimen name="pk_step_circle_size">8dp</dimen>
+    <!-- Citation chip max-w-32 -->
+    <dimen name="pk_citation_chip_max_width">128dp</dimen>
+    <!-- Citation popup w-80 -->
+    <dimen name="pk_citation_popup_width">320dp</dimen>
+    <!-- Elevation tokens -->
+    <dimen name="pk_elevation_1">2dp</dimen>
+    <dimen name="pk_elevation_2">4dp</dimen>
+    <dimen name="pk_elevation_3">8dp</dimen>
+    <dimen name="pk_elevation_4">16dp</dimen>
+</resources>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MessageAvatar: h-8 w-8 shrink-0, AvatarImage + AvatarFallback -->
+<com.google.android.material.imageview.ShapeableImageView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/messageAvatar"
+    android:layout_width="@dimen/pk_avatar_size"
+    android:layout_height="@dimen/pk_avatar_size"
+    android:scaleType="centerCrop"
+    android:contentDescription="@string/assistant_avatar"
+    app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.Circle"
+    android:visibility="gone" />

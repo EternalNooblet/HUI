@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PromptInputLayout: rounded-3xl border p-2 shadow-xs bg-background border-input -->
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingTop="@dimen/pk_space_2"
+        android:paddingBottom="@dimen/pk_space_2">
+
+        <!-- Textarea: autosizing, min-h-[44px], w-full -->
+        <com.southpawin.companion.ui.AutoSizingEditText
+            android:id="@+id/promptInputTextarea"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="@dimen/pk_input_min_height"
+            android:hint="@string/prompt_input_placeholder"
+            android:textSize="@dimen/pk_text_base"
+            android:textColor="@color/pk_foreground"
+            android:textColorHint="@color/pk_muted_foreground"
+            android:background="@null"
+            android:padding="@dimen/pk_space_2"
+            android:gravity="start|top"
+            android:inputType="textMultiLine|textCapSentences"
+            android:imeOptions="actionSend"
+            android:maxLines="10"
+            android:singleLine="false"
+            android:scrollbars="none" />
+
+        <!-- Actions: flex items-center gap-2 -->
+        <com.southpawin.companion.ui.PromptInputActions
+            android:id="@+id/promptInputActions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="@dimen/pk_space_2" />
+
+    </LinearLayout>
+</merge>

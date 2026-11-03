@@ -55,6 +55,7 @@ TTS_VOICES = [
 
 voice_sessions = {}   # (device_id, voice_session) -> session dict
 VOICE_TMP = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.voice_tmp')
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 os.makedirs(VOICE_TMP, exist_ok=True)
 
 # Raw-gateway-frame log (the hedge for the ONE shape fact a mock can't prove):
@@ -337,6 +338,19 @@ async def chat_handle(device_id, event, ws):
         return
     logger.info(f"💬 chat from {device_id}: {text[:80]} (session={voice_session})")
     
+    # MOCK_CHAT=1 → canned reply, never touches the real thinking model
+    if os.environ.get('MOCK_CHAT') == '1':
+        import random
+        canned = [
+            f"Mock reply: I heard you say '{text}'. (LLM mocked, no real model called)",
+            f"Mock: '{text}' — that's a canned response from the test mock LLM.",
+            f"Mock reply received: '{text}'. Mock gateway active.",
+        ]
+        reply = random.choice(canned)
+        await send_voice_command(ws, device_id, 'chat_reply', {'text': reply, 'voice_session': voice_session})
+        logger.info(f"✅ mock chat done for {voice_session}: {reply[:80]}")
+        return
+
     # Use the same bridge to Hermes gateway
     global bridge
     if bridge is None:
@@ -584,6 +598,30 @@ async def http_command_handler(request):
     success = await send_command(device_id, command, payload)
     return web.json_response({"status": "ok" if success else "failed", "device_id": device_id})
 
+async def http_upload_handler(request):
+    """HTTP endpoint to upload attachment files. Returns {url} for use in chat markdown."""
+    reader = await request.multipart()
+    field = await reader.next()
+    if field is None or field.name != 'file':
+        return web.json_response({"error": "file field required"}, status=400)
+
+    filename = field.filename or 'attachment.bin'
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    filepath = os.path.join(UPLOAD_DIR, filename)
+
+    with open(filepath, 'wb') as f:
+        while True:
+            chunk = await field.read_chunk()
+            if not chunk:
+                break
+            f.write(chunk)
+
+    # Return the URL the client can use to fetch the file
+    # Served via static route or direct path; for now return a relative path
+    url = f"/uploads/{filename}"
+    logger.info(f"📎 Upload saved: {filepath} -> {url}")
+    return web.json_response({"status": "ok", "url": url, "filename": filename})
+
 async def send_command(device_id: str, command: str, payload: dict):
     if device_id not in connected_devices or not connected_devices[device_id]:
         logger.warning(f"Device {device_id} not connected")
@@ -611,6 +649,8 @@ async def main():
     app.router.add_post('/events/{type}', http_event_handler)
     app.router.add_post('/events', http_event_handler)
     app.router.add_post('/command', http_command_handler)
+    app.router.add_post('/upload', http_upload_handler)
+    app.router.add_static('/uploads', UPLOAD_DIR)
 
     # SSL context with self-signed cert
     cert_dir = os.path.dirname(os.path.abspath(__file__))
@@ -629,6 +669,7 @@ async def main():
 
     logger.info("Companion WSS server running on wss://0.0.0.0:8081/ws")
     logger.info("HTTP events: POST https://0.0.0.0:8081/events")
+    logger.info("HTTP upload: POST https://0.0.0.0:8081/uploads")
 
     try:
         while True:

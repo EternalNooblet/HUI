@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Blockquote background with left border -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/pk_muted" />
+    <corners android:radius="@dimen/pk_radius_md" />
+</shape>

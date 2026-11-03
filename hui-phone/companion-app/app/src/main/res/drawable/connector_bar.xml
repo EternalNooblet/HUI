@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ChainOfThought/Steps connector bar: w-[2px] bg-primary/20 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/pk_connector_bar" />
+    <corners android:radius="1dp" />
+    <size android:width="@dimen/pk_connector_bar_width" />
+</shape>
