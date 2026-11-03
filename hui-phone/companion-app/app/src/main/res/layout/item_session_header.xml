@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- prompt-kit SidebarGroupLabel: period label above each group -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:id="@+id/sessionHeaderLabel"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="6dp"
+    android:text="Today"
+    android:textSize="11sp"
+    android:textColor="@color/pk_muted_foreground" />

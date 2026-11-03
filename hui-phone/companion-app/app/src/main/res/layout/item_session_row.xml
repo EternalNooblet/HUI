@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- prompt-kit SidebarMenuButton: session title + lastMessage preview -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:id="@+id/sessionRow"
+    android:orientation="vertical"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="8dp"
+    android:background="?attr/selectableItemBackground">
+
+    <TextView
+        android:id="@+id/sessionTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Conversation"
+        android:textSize="14sp"
+        android:textColor="@color/pk_foreground"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+    <TextView
+        android:id="@+id/sessionLastMessage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text=""
+        android:textSize="12sp"
+        android:textColor="@color/pk_muted_foreground"
+        android:maxLines="1"
+        android:ellipsize="end" />
+</LinearLayout>

@@ -1,83 +1,92 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
+<androidx.drawerlayout.widget.DrawerLayout
+    android:id="@+id/drawerLayout"
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/pk_background">
 
-    <androidx.appcompat.widget.Toolbar
-        android:id="@+id/toolbar"
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="?attr/colorPrimary"
-        app:titleTextColor="@color/pk_foreground"
-        app:contentInsetEnd="16dp"
-        app:menu="@menu/menu_main">
+        android:layout_height="match_parent"
+        android:background="@color/pk_background">
 
-        <TextView
-            android:id="@+id/buildNameText"
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorPrimary"
+            app:titleTextColor="@color/pk_foreground"
+            app:contentInsetEnd="16dp"
+            app:menu="@menu/menu_main">
+
+            <TextView
+                android:id="@+id/buildNameText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="14sp"
+                android:textColor="@color/pk_foreground" />
+
+        </androidx.appcompat.widget.Toolbar>
+
+        <com.southpawin.companion.ui.SystemBannerView
+            android:id="@+id/systemBannerView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_constraintTop_toBottomOf="@id/toolbar"/>
+
+        <com.southpawin.companion.ui.ChatRecyclerView
+            android:id="@+id/chatRecyclerView"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_marginTop="@dimen/pk_space_4"
+            android:layout_marginHorizontal="@dimen/pk_space_2"
+            android:layout_marginBottom="@dimen/pk_space_2"
+            android:clipToPadding="false"
+            android:paddingBottom="@dimen/pk_space_4"
+            app:layout_constraintTop_toBottomOf="@id/systemBannerView"
+            app:layout_constraintBottom_toTopOf="@id/thinkingBarView"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"/>
+
+        <com.southpawin.companion.ui.ThinkingBarView
+            android:id="@+id/thinkingBarView"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="@dimen/pk_space_4"
+            android:layout_marginBottom="@dimen/pk_space_2"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/chatRecyclerView"
+            app:layout_constraintBottom_toTopOf="@id/promptInputLayout"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"/>
+
+        <com.southpawin.companion.ui.PromptInputLayout
+            android:id="@+id/promptInputLayout"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="@dimen/pk_space_4"
+            android:layout_marginBottom="@dimen/pk_space_4"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"/>
+
+        <com.southpawin.companion.ui.StickToBottomFab
+            android:id="@+id/stickToBottomFab"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text=""
-            android:textSize="14sp"
-            android:textColor="@color/pk_foreground" />
+            android:layout_margin="@dimen/pk_space_4"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"/>
 
-    </androidx.appcompat.widget.Toolbar>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- System banner (dismissible system messages) -->
-    <com.southpawin.companion.ui.SystemBannerView
-        android:id="@+id/systemBannerView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:layout_constraintTop_toBottomOf="@id/toolbar"/>
+    <include
+        layout="@layout/drawer_sessions"
+        android:layout_width="300dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start" />
 
-    <!-- Chat message list (always visible) -->
-    <com.southpawin.companion.ui.ChatRecyclerView
-        android:id="@+id/chatRecyclerView"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginTop="@dimen/pk_space_4"
-        android:layout_marginHorizontal="@dimen/pk_space_2"
-        android:layout_marginBottom="@dimen/pk_space_2"
-        android:clipToPadding="false"
-        android:paddingBottom="@dimen/pk_space_4"
-        app:layout_constraintTop_toBottomOf="@id/systemBannerView"
-        app:layout_constraintBottom_toTopOf="@id/thinkingBarView"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
-
-    <!-- Thinking indicator (visible while awaiting a chat reply) -->
-    <com.southpawin.companion.ui.ThinkingBarView
-        android:id="@+id/thinkingBarView"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="@dimen/pk_space_4"
-        android:layout_marginBottom="@dimen/pk_space_2"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/chatRecyclerView"
-        app:layout_constraintBottom_toTopOf="@id/promptInputLayout"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
-
-    <!-- Prompt-kit PromptInput (always visible) -->
-    <com.southpawin.companion.ui.PromptInputLayout
-        android:id="@+id/promptInputLayout"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="@dimen/pk_space_4"
-        android:layout_marginBottom="@dimen/pk_space_4"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
-
-    <!-- Stick-to-bottom FAB (appears when scrolled up from bottom) -->
-    <com.southpawin.companion.ui.StickToBottomFab
-        android:id="@+id/stickToBottomFab"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="@dimen/pk_space_4"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.drawerlayout.widget.DrawerLayout>

@@ -8,6 +8,14 @@
     <color name="text_primary">#FFFFFF</color>
     <color name="text_secondary">#B0B0B0</color>
     <color name="text_on_primary">#FFFFFF</color>
+    <!-- Bubble overhaul (WCAG 2.2 AA: 4.5:1 for <18sp text).
+         Old user blue #2196F3 gives white only 3.12:1, and timestamp
+         #B0B0B0 at alpha 0.7 over it blends to ~1.25:1 — unreadable.
+         New user bubble #1D4ED8: white body 6.70:1, timestamp #DBEAFE 5.49:1.
+         Assistant surface #1E1E1E: timestamp #A1A1AA 6.50:1 (no alpha). -->
+    <color name="bubble_user">#1D4ED8</color>
+    <color name="timestamp_user">#DBEAFE</color>
+    <color name="timestamp_assistant">#A1A1AA</color>
     <color name="connected">#4CAF50</color>
     <color name="disconnected">#F44336</color>
     <color name="connecting">#FF9800</color>
