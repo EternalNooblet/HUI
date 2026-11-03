@@ -255,7 +255,13 @@ class GatewayBridge:
         token = out.decode().strip()
         url = (os.environ.get('GATEWAY_WS_URL') or GATEWAY_WS_URL) + '?' + \
             urllib.parse.urlencode({'token': token})
-        self.client = websockets.connect(url, max_size=16 << 20)
+        # No protocol ping: a busy hermes serve can miss the 20s WS ping
+        # during a long model turn and the client then kills a healthy
+        # socket (1011 keepalive ping timeout surfaced as the chat reply).
+        # Liveness is handled at app level via gateway.ping on 15s silence.
+        self.client = websockets.connect(url, max_size=16 << 20,
+                                         ping_interval=None, ping_timeout=None,
+                                         close_timeout=10)
         self.ws = await self.client.__aenter__()
         if self.session_id is None:
             snap = await self.rpc('session.create', {'source': 'cli'})  # request_id rejected by serve
@@ -270,8 +276,11 @@ class GatewayBridge:
 
     async def rpc(self, method, params):
         req_id = str(uuid.uuid4())[:8]
-        await self._send(json.dumps({'jsonrpc': '2.0', 'id': req_id,
-                                     'method': method, 'params': params}))
+        try:
+            await self._send(json.dumps({'jsonrpc': '2.0', 'id': req_id,
+                                         'method': method, 'params': params}))
+        except websockets.exceptions.ConnectionClosed:
+            raise BridgeDropped() from None
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline:
             try:
@@ -339,6 +348,11 @@ class GatewayBridge:
                 last_err = 'reply timed out'
                 raise BridgeDropped('reply timeout — exercise the resume path once')
             except BridgeDropped:
+                await self.close()
+                continue
+            except websockets.exceptions.ConnectionClosed:
+                # Send-side drop (e.g. 1011 ping timeout): same retry path
+                # as a recv-side drop — close, resume, resubmit once.
                 await self.close()
                 continue
             except BridgeFailed as e:

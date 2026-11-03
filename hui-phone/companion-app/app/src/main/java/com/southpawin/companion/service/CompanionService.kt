@@ -44,6 +44,7 @@ class CompanionService : Service() {
         const val NOTIFICATION_ID = 1
         const val CHANNEL_ID = "companion_service_v2"
         const val ACTION_DISCONNECT = "com.southpawin.companion.ACTION_DISCONNECT"
+        const val ACTION_CONNECT = "com.southpawin.companion.ACTION_CONNECT"
     }
     
     override fun onCreate() {
@@ -93,6 +94,12 @@ class CompanionService : Service() {
             // receiving events from this (now unauthenticated) phone.
             Timber.i("CompanionService: disconnect requested (unauthenticated)")
             transport.disconnect()
+        }
+        if (intent?.action == ACTION_CONNECT) {
+            // Settings QR scan: token was stored after startup, when
+            // connect() was blocked for lack of auth — connect now.
+            Timber.i("CompanionService: connect requested (after QR scan)")
+            transport.connect()
         }
         return START_STICKY
     }

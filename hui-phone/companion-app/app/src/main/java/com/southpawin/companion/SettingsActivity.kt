@@ -145,6 +145,12 @@ class SettingsActivity : AppCompatActivity() {
             if (serverUrl.isNotEmpty()) Config.setServerUrl(serverUrl)
             if (!token.isNullOrEmpty()) Config.setAuthToken(token)
             updateAuthStatus()
+            // Token was stored after the transports started (and were
+            // blocked for lack of auth) — trigger the service connect now.
+            // MainActivity's own transport connects in onResume.
+            val svc = Intent(this, com.southpawin.companion.service.CompanionService::class.java)
+                .setAction(com.southpawin.companion.service.CompanionService.ACTION_CONNECT)
+            try { startService(svc) } catch (e: Exception) { Timber.w(e, "connect intent failed") }
             Toast.makeText(this, "Authenticated", Toast.LENGTH_SHORT).show()
             Timber.i("QR auth applied")
         } catch (e: Exception) {
