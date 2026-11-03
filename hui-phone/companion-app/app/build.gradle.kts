@@ -4,6 +4,47 @@ plugins {
     id("kotlin-kapt")
 }
 
+// --- Deterministic release versioning (see GITHUB_RELEASE_PIPELINE_PLAN.md) ---
+// CI sets VERSION_NAME (git tag, e.g. v0.1.10) and VERSION_CODE (monotonic int).
+// Locally: fall back to `git describe --tags --abbrev=0`, then "1.0.0-dev", and
+// epoch-seconds for versionCode (monotonic until 2038, fits Int).
+fun gitTagOrNull(): String? = try {
+    val p = ProcessBuilder("git", "describe", "--tags", "--abbrev=0")
+        .directory(project.rootProject.projectDir.parentFile)
+        .redirectErrorStream(true).start()
+    val out = p.inputStream.bufferedReader().readText().trim()
+    if (p.waitFor() == 0 && out.isNotEmpty()) out else null
+} catch (e: Exception) { null }
+
+val propOrEnv: (String) -> String? = { key ->
+    (project.findProperty(key) as? String)?.takeIf { it.isNotBlank() }
+        ?: System.getenv(key)?.takeIf { it.isNotBlank() }
+}
+
+val releaseVersionName: String = (
+    propOrEnv("VERSION_NAME")
+        ?: gitTagOrNull()
+        ?: "1.0.0-dev"
+).removePrefix("v")
+
+val releaseVersionCode: Int = (
+    propOrEnv("VERSION_CODE")
+        ?: (System.currentTimeMillis() / 1000).toString()
+).toIntOrNull() ?: 1
+
+val buildCodename: String = propOrEnv("BUILD_CODENAME") ?: "hui"
+val buildNumber: Long = System.currentTimeMillis() / 1000
+
+// --- Release signing (CI injects these; local builds fall back to debug) ---
+val ksFile: String? = propOrEnv("android.injected.signing.store.file")
+    ?: propOrEnv("KEYSTORE_FILE") ?: propOrEnv("ANDROID_KEYSTORE_FILE")
+val ksPassword: String? = propOrEnv("android.injected.signing.store.password")
+    ?: propOrEnv("KEYSTORE_PASSWORD") ?: propOrEnv("ANDROID_KEYSTORE_PASSWORD")
+val ksAlias: String? = propOrEnv("android.injected.signing.key.alias")
+    ?: propOrEnv("KEY_ALIAS") ?: propOrEnv("ANDROID_KEY_ALIAS")
+val ksKeyPassword: String? = propOrEnv("android.injected.signing.key.password")
+    ?: propOrEnv("KEY_PASSWORD") ?: propOrEnv("ANDROID_KEY_PASSWORD")
+
 android {
     namespace = "com.southpawin.companion"
     compileSdk = 34
@@ -12,23 +53,10 @@ android {
         applicationId = "com.southpawin.companion"
         minSdk = 27  // Android 8.1
         targetSdk = 34
-        versionCode = 1
+        versionCode = releaseVersionCode
+        versionName = releaseVersionName
 
-        // Codename pools for build names
-        val gods = listOf("odin", "athena", "anubis", "loki", "ra", "thor", "freya", "hermes")
-        val animals = listOf("raven", "falcon", "wolf", "owl", "shark", "lynx", "cobra", "phoenix")
-        val science = listOf("quark", "nebula", "photon", "helix", "atom", "vector", "prism", "flux")
-        val aiTerms = listOf("token", "latent", "prompt", "inference", "embedding", "transformer", "attention")
-        val memes = listOf("skynet", "hal9000", "jarvis", "cortana", "glados", "bobby", "chad", "based")
-        val transformers = listOf("optimus", "megatron", "starscream", "bumblebee", "soundwave", "shockwave", "grimlock", "rodimus")
-
-        val allNames = gods + animals + science + aiTerms + memes + transformers
-        val codename = allNames[(Math.random() * allNames.size).toInt()]
-        val buildNumber = System.currentTimeMillis() / 1000
-
-        versionName = "1.0.0-$codename-$buildNumber"
-
-        buildConfigField("String", "BUILD_CODENAME", "\"$codename\"")
+        buildConfigField("String", "BUILD_CODENAME", "\"$buildCodename\"")
         buildConfigField("Long", "BUILD_NUMBER", "${buildNumber}L")
         buildConfigField("String", "BUILD_TIMESTAMP", "\"$buildNumber\"")
 
@@ -40,10 +68,22 @@ android {
         buildConfig = true
     }
 
+    signingConfigs {
+        create("release") {
+            if (ksFile != null) {
+                storeFile = file(ksFile)
+                storePassword = ksPassword
+                keyAlias = ksAlias
+                keyPassword = ksKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = if (ksFile != null) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
         debug {
             isMinifyEnabled = false

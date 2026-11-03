@@ -45,19 +45,36 @@ python3 companion_wss_server.py
 
 ## Build & Deploy
 
+### Release (GitHub)
+
+Releases are built by GitHub Actions (`.github/workflows/release.yml`). Pushing a
+`v*` tag builds the Go CLI binaries **and** the signed Android APK+AAB, and
+publishes all of them to a single GitHub Release:
+
+```bash
+git tag v0.1.10 && git push origin v0.1.10
+# then download hui-phone-v0.1.10.apk from the release page
+```
+
+- `versionName` comes from the tag; `versionCode` is epoch-seconds (monotonic).
+- Signing uses the `ANDROID_KEYSTORE_BASE64` / `ANDROID_KEYSTORE_PASSWORD` /
+  `ANDROID_KEY_ALIAS` / `ANDROID_KEY_PASSWORD` repo secrets. See
+  [`GITHUB_RELEASE_PIPELINE_PLAN.md`](GITHUB_RELEASE_PIPELINE_PLAN.md) Phase 3.
+- Manual build-only test: Actions → release → Run workflow (no publishing).
+
+### Local build
+
 ```bash
 cd hui-phone/companion-app
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
 export ANDROID_HOME=/home/papa/Android/Sdk
-./gradlew assembleRelease
-
-# Sign
-apksigner sign --ks /tmp/debug.keystore --ks-pass pass:android \
-  --key-pass pass:android --out app-release-signed.apk \
-  app/build/outputs/apk/release/app-release-unsigned.apk
+./gradlew assembleRelease bundleRelease
+# Without keystore env vars, release falls back to the debug keystore (local only).
+# With them, output is signed: app/build/outputs/apk/release/app-release.apk
+# Verify: $ANDROID_HOME/build-tools/34.0.0/apksigner verify --verbose <apk>
 
 # Install (USB device)
-adb install -r app-release-signed.apk
+adb install -r app/build/outputs/apk/release/app-release.apk
 
 # Permissions
 adb shell pm grant com.southpawin.companion android.permission.CAMERA
