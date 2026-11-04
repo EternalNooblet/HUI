@@ -53,14 +53,15 @@ Check: `grep -A3 basic_auth ~/.hermes/config.yaml` shows all three keys.
 
 ## 3. Install the phone server
 
-Download `hui-phone-server-<tag>.zip` from the GitHub Release (or clone the
-repo and use `hui-phone/server/`). **Install location is `$HOME/hui-phone-server`**
-— unzip there, not anywhere else:
+Download `hui-phone-server-<tag>.zip` and the APK from the GitHub Release
+(or clone the repo and use `hui-phone/server/`). **Install location is
+`$HOME/hui-phone`** — app and server kept together, mirroring the repo:
 
 ```bash
-mkdir -p ~/hui-phone-server
-unzip hui-phone-server-<tag>.zip -d ~/hui-phone-server
-cd ~/hui-phone-server && ./install.sh
+mkdir -p ~/hui-phone
+unzip hui-phone-server-<tag>.zip -d ~/hui-phone/server
+cp hui-phone-v<tag>.apk ~/hui-phone/
+cd ~/hui-phone/server && ./install.sh
 ```
 
 `install.sh` is idempotent. It installs `aiohttp`, `websockets`, `qrcode`

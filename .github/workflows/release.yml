@@ -163,7 +163,7 @@ jobs:
           out = pathlib.Path("hui-phone-server.zip")
           with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
               for p in include:
-                  z.write(p, f"hui-phone-server/{p.name}")
+                  z.write(p, p.name)  # flat: unzip straight into ~/hui-phone/server/
           print(f"bundled {len(include)} files -> {out} ({out.stat().st_size} bytes)")
           for p in include: print(" ", p)
           PY
