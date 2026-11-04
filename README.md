@@ -13,6 +13,32 @@ A full hui-cli session: connect, typed prompt, streamed reply, `/status`, an inl
 
 https://github.com/user-attachments/assets/f7f06a7f-36cd-4025-932a-67bf193476c7
 
+## Architecture
+
+```
+                        ┌──────────────────────────────┐
+                        │        Hermes gateway        │  (remote, runs the agent)
+                        │   chat · tools · sessions    │
+                        └──────▲───────────────▲───────┘
+                    token auth │               │ token auth
+                               │               │
+        ┌──────────────────────┴───┐   ┌───────┴──────────────────────┐
+        │   hui-cli (Go, laptop)   │   │  hui-phone/server (Python)   │  (laptop)
+        │   terminal chat TUI      │   │  WSS :8081 · STT · dispatch  │
+        └──────────────────────────┘   └───────┬──────────────────────┘
+                                               │  WSS/TLS (phone connects out)
+                                               │
+                                     ┌─────────┴────────────┐
+                                     │  hui-phone app       │  (Android)
+                                     │  sensors · voice/text│
+                                     │  chat UI             │
+                                     └──────────────────────┘
+```
+
+- **hui-cli** talks straight to the gateway — no server of its own.
+- **hui-phone** is the reverse: the phone is a thin sensor client, and the
+  laptop server does the heavy lifting (speech-to-text, gateway bridge, commands).
+
 ## Quick start
 
 ```bash
