@@ -9,7 +9,7 @@
 ## Features
 
 - **Open source** — GPL-3.0 copyleft, derivatives must stay open, no device lockdown.
-- **Battery efficient** — heavy compute runs on the server. Events batched, no server-side polling.
+- **No background drain** — no sensors, no foreground service, no polling. The phone only talks when you use it.
 - **Image and voice chat** — image input, voice input, spoken replies.
 - **Old phone compatible** — Android 8.1+ (API 27, 2017+).
 - **Authentication** — native Hermes integration using `hermes serve`. Easy QR pairing that works through any text terminal.
@@ -20,16 +20,17 @@ https://github.com/user-attachments/assets/fbce7eac-1f51-4752-bd6c-aa67fb4100d8
 ## Setup
 
 **Start with [`server/AI_SETUP.md`](server/AI_SETUP.md)** — it has the full
-walkthrough with checks for every step (backend, auth, server, voice, QR).
+walkthrough with checks for every step (backend, auth, QR pairing).
 That's the canonical guide; the summary below is just the outline.
 
-1. Download the APK and the server zip from the latest GitHub Release.
-2. Unzip the server zip and run `./install.sh` (deps + QR launcher).
-3. Start the backend: `hermes serve --host 0.0.0.0 --port 9119` (or let
+1. Download the APK from the latest GitHub Release. (The release also
+   ships a small QR-tooling zip — `server/` — for step 3.)
+2. Start the backend: `hermes serve --host 0.0.0.0 --port 9119` (or let
    `hui-qr` start it for you).
+3. Unzip the QR tooling and run `./install.sh` (deps + `hui-qr` launcher),
+   then run `hui-qr` — it prints the QR code.
 4. Install the APK on your phone, grant camera + mic when it asks.
-5. On the server machine run `hui-qr` — this prints the QR code.
-6. Scan the QR in the app (Settings → Authentication).
+5. Scan the QR in the app (Settings → Authentication).
 
 ## Run it
 
