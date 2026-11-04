@@ -6,6 +6,13 @@
 
 <p align="center">Android companion app. The phone is a sensor client; all heavy compute runs on the server over WSS/TLS.</p>
 
+## Features
+
+- **Open source** — GPL-3.0 — copyleft: derivatives must stay open, no device lockdown.
+- **Battery efficient** — heavy compute runs on the server. Events batched, no server-side polling.
+- **Image and voice chat** — image input, voice input, spoken replies.
+- **Old phone compatible** — Android 8.1+ (API 27, 2017+).
+
 https://github.com/user-attachments/assets/fbce7eac-1f51-4752-bd6c-aa67fb4100d8
 
 ## Setup
