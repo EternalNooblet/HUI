@@ -6,6 +6,8 @@
 
 <p align="center">Android companion app. The phone is a sensor client; all heavy compute runs on the server over WSS/TLS.</p>
 
+https://github.com/user-attachments/assets/fbce7eac-1f51-4752-bd6c-aa67fb4100d8
+
 ## Setup
 
 **Start with [`server/AI_SETUP.md`](server/AI_SETUP.md)** — it has the full
