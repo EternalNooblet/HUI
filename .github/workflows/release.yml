@@ -5,7 +5,7 @@ name: release
 # Linux runner — every term_*.go is stdlib-only, no cgo), then publishes a
 # GitHub Release under the pushed v* tag.
 #
-# The `apk` job (needs: release) builds the signed hui-phone Android APK+AAB
+# The `apk` job (needs: release) builds the signed hui-phone Android APK
 # and uploads them to the same release, so one v* tag = one release.
 #
 # Trigger: push a version tag:  git tag v0.1.0 && git push origin v0.1.0
@@ -126,7 +126,7 @@ jobs:
           echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
           ls -lh "$RUNNER_TEMP/release.keystore"
 
-      - name: Build signed APK and AAB
+      - name: Build signed APK
         env:
           ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/release.keystore
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -143,11 +143,11 @@ jobs:
           fi
           export VERSION_CODE="$(date +%s)"
           echo "VERSION_NAME=$VERSION_NAME VERSION_CODE=$VERSION_CODE"
-          ./gradlew assembleRelease bundleRelease --console=plain
+          ./gradlew assembleRelease --console=plain
 
       - name: Verify outputs
         run: |
-          ls -lh app/build/outputs/apk/release/*.apk app/build/outputs/bundle/release/*.aab
+          ls -lh app/build/outputs/apk/release/*.apk
           "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
 
       - name: Package server bundle
@@ -177,13 +177,12 @@ jobs:
         run: |
           NAME="${TAG#refs/tags/}"
           cp app/build/outputs/apk/release/app-release.apk "hui-phone-${NAME}.apk"
-          cp app/build/outputs/bundle/release/app-release.aab "hui-phone-${NAME}.aab"
           cp "$GITHUB_WORKSPACE/hui-phone-server.zip" "hui-phone-server-${NAME}.zip"
-          sha256sum "hui-phone-${NAME}.apk" "hui-phone-${NAME}.aab" "hui-phone-server-${NAME}.zip" > SHA256SUMS.txt
+          sha256sum "hui-phone-${NAME}.apk" "hui-phone-server-${NAME}.zip" > SHA256SUMS.txt
           cat SHA256SUMS.txt
-          gh release upload "$NAME" "hui-phone-${NAME}.apk" "hui-phone-${NAME}.aab" "hui-phone-server-${NAME}.zip" SHA256SUMS.txt --clobber
-          echo "Uploaded hui-phone-${NAME}.apk/.aab + server bundle to release $NAME"
+          gh release upload "$NAME" "hui-phone-${NAME}.apk" "hui-phone-server-${NAME}.zip" SHA256SUMS.txt --clobber
+          echo "Uploaded hui-phone-${NAME}.apk + server bundle to release $NAME"
 
       - name: Note manual run
         if: github.ref_type != 'tag'
-        run: echo "Manual run - APK/AAB built and verified but not uploaded (no tag pushed)."
+        run: echo "Manual run - APK built and verified but not uploaded (no tag pushed)."
