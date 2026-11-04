@@ -17,7 +17,7 @@ in EncryptedSharedPreferences via Config.setServerUrl/setAuthToken.
 
 Usage:
     python3 hermes_auth_qr.py [--port 9119] [--wss-port 8081]
-                              [--ttl 43200] [--no-start-serve]
+                              [--ttl 31536000] [--no-start-serve]
                               [--json] [--no-qr]
 
 Requires: pip install qrcode   (ASCII rendering; `pip install "qrcode[pil]"` optional)
@@ -178,7 +178,7 @@ def token_claims(token: str) -> dict:
 
 
 def token_exp(token: str) -> int:
-    return int(token_claims(token).get("exp") or (int(time.time()) + 12 * 3600))
+    return int(token_claims(token).get("exp") or (int(time.time()) + 365 * 24 * 3600))
 
 
 def ensure_qrcode():
@@ -280,7 +280,7 @@ def main() -> None:
     ap.add_argument("--wss-port", type=int, default=8081,
                     help="companion WSS server port the phone connects to")
     ap.add_argument("--ip", default=None, help="override LAN IP detection")
-    ap.add_argument("--ttl", type=int, default=12 * 3600, help="token TTL seconds")
+    ap.add_argument("--ttl", type=int, default=365 * 24 * 3600, help="token TTL seconds (default 1 year)")
     ap.add_argument("--no-start-serve", action="store_true",
                     help="don't start hermes serve if it's down")
     ap.add_argument("--json", action="store_true", help="print payload JSON only")

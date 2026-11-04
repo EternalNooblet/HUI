@@ -21,7 +21,7 @@ session, `-debug <file>` writes every wire frame to a file.
 ## Token
 
 Start the backend (`hermes serve --host 0.0.0.0`, with auth config set),
-then mint a signed token (~12h validity):
+then mint a signed token (1-year validity):
 
 ```bash
 ./tools/mint_access_token.py > last-token.txt

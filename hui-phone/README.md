@@ -26,7 +26,7 @@ The short version:
    `companion_wss_server.py` (WSS on :8081).
 4. **Voice-in only (optional):** set `stt.enabled: true` in the Hermes
    config; the speech model downloads on first use.
-5. **Connect the phone:** run `hermes_auth_qr.py`, scan the QR in the app
+5. **Connect the phone:** run `./hui-qr` in `hui-phone/server/`, scan the QR in the app
    (Settings → Authentication). The APK has no server address baked in —
    the QR supplies it, so any network works.
 
@@ -38,7 +38,7 @@ cd hui-phone/server && python3 companion_wss_server.py
 
 # 2. App on the phone — download the APK from the latest GitHub Release,
 #    or build locally. The APK contains no server address: scan the QR
-#    from hermes_auth_qr.py (Settings → Authentication) to connect.
+#    from ./hui-qr (Settings → Authentication) to connect.
 cd hui-phone/companion-app
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
 export ANDROID_HOME=/home/papa/Android/Sdk
