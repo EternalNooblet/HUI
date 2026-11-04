@@ -243,6 +243,11 @@ def print_ascii_qr(qrcode, payload_str: str) -> None:
     import shutil
     import subprocess
     exe = shutil.which("qrterminal") or os.path.expanduser("~/bin/qrterminal")
+    if not os.path.exists(exe):
+        # install root layout: <root>/bin/qrterminal next to <root>/server/
+        sibling = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "bin", "qrterminal")
+        if os.path.exists(sibling):
+            exe = sibling
     if os.path.exists(exe):
         try:
             # -q 4: QR spec minimum quiet zone. -l L: largest modules.

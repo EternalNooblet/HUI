@@ -36,7 +36,7 @@ echo "installed launcher to ~/.local/bin/hui-qr (symlink)"
 QR_VERSION="v4.0.0"
 QRT_SHA_X86_64="a182c40251fc9db9de276583011b0f0c48e88f1e533424d0ac56b39cfbdf9c00"
 QRT_SHA_ARM64="3bcaea6fc0bf5ad8e52beb6c56323f3b3990d813ff72f0f87ba19977caaaa82f"
-if command -v qrterminal >/dev/null 2>&1 || [ -x "$HOME/bin/qrterminal" ]; then
+if command -v qrterminal >/dev/null 2>&1 || [ -x "$HOME/bin/qrterminal" ] || [ -x "$HOME/hui-phone/bin/qrterminal" ]; then
   echo "qrterminal already available — skipping download."
 else
   case "$(uname -m)" in
@@ -54,10 +54,10 @@ else
       echo "error: qrterminal checksum mismatch ($got)" >&2; rm -rf "$tmp"; exit 1
     fi
     tar xzf "$tmp/qrterminal.tar.gz" -C "$tmp"
-    mkdir -p "$HOME/bin"
-    install -m 755 "$tmp/qrterminal" "$HOME/bin/qrterminal"
+    mkdir -p "$HOME/hui-phone/bin"
+    install -m 755 "$tmp/qrterminal" "$HOME/hui-phone/bin/qrterminal"
     rm -rf "$tmp"
-    echo "installed qrterminal to ~/bin/qrterminal"
+    echo "installed qrterminal to ~/hui-phone/bin/qrterminal"
   fi
 fi
 
