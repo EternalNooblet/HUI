@@ -27,6 +27,11 @@ if [ -n "$HERMES_PY" ] && [ -x "$HERMES_PY" ]; then
 fi
 "$PY" -m pip install -r requirements.txt
 
+# --- 1c. hui-qr launcher -> ~/.local/bin (so the QR command is just `hui-qr`) ---
+mkdir -p "$HOME/.local/bin"
+install -m 755 hui-qr "$HOME/.local/bin/hui-qr"
+echo "installed launcher to ~/.local/bin/hui-qr"
+
 # --- 1b. qrterminal binary (QR rendering) — download pinned, never bundle ---
 QR_VERSION="v4.0.0"
 QRT_SHA_X86_64="a182c40251fc9db9de276583011b0f0c48e88f1e533424d0ac56b39cfbdf9c00"
