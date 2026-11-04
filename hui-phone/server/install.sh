@@ -29,8 +29,8 @@ fi
 
 # --- 1c. hui-qr launcher -> ~/.local/bin (so the QR command is just `hui-qr`) ---
 mkdir -p "$HOME/.local/bin"
-install -m 755 hui-qr "$HOME/.local/bin/hui-qr"
-echo "installed launcher to ~/.local/bin/hui-qr"
+ln -sf "$(pwd)/hui-qr" "$HOME/.local/bin/hui-qr"
+echo "installed launcher to ~/.local/bin/hui-qr (symlink)"
 
 # --- 1b. qrterminal binary (QR rendering) — download pinned, never bundle ---
 QR_VERSION="v4.0.0"

@@ -2,8 +2,11 @@
 # hui-qr — print the HUI Phone auth QR using the Hermes venv Python.
 # Finds the venv on ANY Hermes install via ~/.hermes/installs/*/facts.json
 # (packages.venv.environment). Falls back to $HERMES_PYTHON, then python3.
+# Safe to install as a symlink in ~/.local/bin: resolves the real server
+# directory through the symlink before running anything.
 set -e
-cd "$(dirname "$0")"
+SELF="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+cd "$(dirname "$SELF")"
 
 PY=""
 if [ -n "${HERMES_PYTHON:-}" ] && [ -x "$HERMES_PYTHON" ]; then
