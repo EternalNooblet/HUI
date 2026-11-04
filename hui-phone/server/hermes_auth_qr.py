@@ -259,18 +259,17 @@ def _reexec_with_qrcode_python() -> None:
 
 
 def print_ascii_qr(qrcode, payload_str: str) -> None:
-    # EC level L = fewest modules for the payload (65 vs 73 at M), so each
-    # module renders largest and phone cameras resolve it most easily.
+    # EC level L = fewest modules for the payload, so each module renders
+    # largest and phone cameras resolve it most easily.
     qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_L,
                        box_size=1, border=2)
     qr.add_data(payload_str)
     qr.make(fit=True)
-    # print_ascii renders half-blocks; invert=True gives dark-on-light
-    # modules suitable for phone cameras. Fall back if the API differs.
-    try:
-        qr.print_ascii(invert=True)
-    except TypeError:
-        qr.print_ascii()
+    # Plain '#' + space only: half-block glyphs (▀▄█) render as cyrillic /
+    # off-shape in many terminal fonts, which breaks scanning. One char
+    # per module keeps it 73 wide (fits 80 cols) and monospace-aligned.
+    for row in qr.get_matrix():
+        print("".join("#" if cell else " " for cell in row))
 
 
 def main() -> None:
