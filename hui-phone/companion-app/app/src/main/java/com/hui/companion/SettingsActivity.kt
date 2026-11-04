@@ -135,7 +135,6 @@ class SettingsActivity : AppCompatActivity() {
             val wsUrl = obj.get("ws_url")?.asString
             val token = obj.get("token")?.asString
             val ip = obj.get("ip")?.asString
-            val certSha256 = obj.get("cert_sha256")?.asString
             val port = obj.get("port")?.asInt ?: 8081
             // Derive server URL: ws_url minus /ws, else from ip/port
             val serverUrl = when {
@@ -145,7 +144,6 @@ class SettingsActivity : AppCompatActivity() {
             }
             if (serverUrl.isNotEmpty()) Config.setServerUrl(serverUrl)
             if (!token.isNullOrEmpty()) Config.setAuthToken(token)
-            if (!certSha256.isNullOrEmpty()) Config.setCertFingerprint(certSha256)
             updateAuthStatus()
             // Token was stored after the transports started (and were
             // blocked for lack of auth) — trigger the service connect now.

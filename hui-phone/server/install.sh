@@ -36,7 +36,7 @@ if [ ! -f server.crt ] || [ ! -f server.key ]; then
     -subj "/CN=localhost" \
     -addext "subjectAltName=IP:${LAN_IP:-127.0.0.1},DNS:localhost"
   echo "no cert copy or APK rebuild needed: hermes_auth_qr.py puts the cert"
-  echo "fingerprint in the QR and the app pins it from there."
+  echo "the app accepts this cert; the signed token authenticates the server."
 else
   echo "server.crt/server.key already present — keeping them."
 fi
