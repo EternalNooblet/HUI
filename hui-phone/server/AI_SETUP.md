@@ -57,9 +57,10 @@ Check: `grep -A3 basic_auth ~/.hermes/config.yaml` shows all three keys.
 
 ## 3. Install the QR tooling
 
-Download `hui-phone-server-<tag>.zip` and the APK from the GitHub Release
-(or clone the repo and use `hui-phone/server/`). **Install location is
-`$HOME/hui-phone`** — app and server kept together, mirroring the repo:
+Download the APK and the QR-tooling zip (`hui-phone-server-<tag>.zip`)
+from the GitHub Release (or clone the repo and use `hui-phone/server/`).
+**Install location is `$HOME/hui-phone`** — app and tooling kept together,
+mirroring the repo:
 
 ```bash
 mkdir -p ~/hui-phone
@@ -77,10 +78,10 @@ the only backend.
 
 ## 4. STT — nothing to install
 
-STT is the gateway's own (`/api/audio/transcribe`, voice.client_direct).
-The phone records a WAV and POSTs it; no local whisper, no model download.
-If voice config is missing, `GET /api/audio/voice-config` reports relay
-mode and the gateway handles transcription server-side.
+STT is the gateway's own (`POST /api/audio/transcribe`). The phone records
+a WAV and POSTs it; no local whisper, no model download, no second copy.
+The gateway's configured STT provider (`stt:` in config.yaml) does the
+transcription.
 
 ## 5. Phone login via QR
 
@@ -96,7 +97,11 @@ Settings → Authentication → scan. The URL and token land in encrypted
 storage; no IP is baked into the app, so this works on any network.
 Re-scanning a new QR re-points the app's socket automatically.
 
-Revoke a lost phone: `hermes_revoke_token.py --jti <jti>` (or `--list`).
+Lost phone? A blob is valid until its expiry (1 year) — the gateway
+accepts any correctly HMAC'd token. True revocation means rotating
+`dashboard.basic_auth.secret` (invalidates every outstanding blob; all
+phones must rescan). `hermes_revoke_token.py` only records the jti in
+`revoked_tokens.json` — nothing enforces that list in direct mode.
 
 ## Done check
 

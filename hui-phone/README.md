@@ -39,7 +39,10 @@ hui-qr   # starts serve if needed, prints QR — scan in app
 ```
 
 Building the app from source instead of downloading the APK:
-`cd hui-phone/companion-app && ./gradlew assembleRelease`, then
+`cd hui-phone/companion-app && ./gradlew assembleRelease`. Without
+keystore env vars (`KEYSTORE_FILE`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`,
+`KEY_PASSWORD`) the release build silently falls back to debug signing —
+set them (see `app/build.gradle.kts`) for a properly signed APK, then
 `adb install -r app/build/outputs/apk/release/app-release.apk`.
 
 ## Protocol (direct to hermes serve)
@@ -56,7 +59,7 @@ Building the app from source instead of downloading the APK:
 
 - Won't connect: is hermes serve up? `ss -tlnp | grep 9119`
 - App logs: `adb logcat -s Transport:V VoiceInput:V Transcriber:V`
-- 401/403 on connect: the QR token expired or was revoked — scan a fresh QR.
+- 401/403 on connect: the QR token expired — scan a fresh QR (a lost phone's blob stays valid until expiry; rotate `dashboard.basic_auth.secret` to revoke it, then every phone rescans).
 
 ## License
 
