@@ -22,8 +22,9 @@ class QrScanActivity : AppCompatActivity() {
     private var done = false
     private val cameraExecutor = Executors.newSingleThreadExecutor()
     // ML Kit 18.3.1 (play-services-mlkit-barcode-scanning): factory is
-    // BarcodeScanning.getClient(), not getInstance() (that was the
-    // bundled 17.3 com.google.mlkit:barcode-scanning artifact).
+    // BarcodeScanning.getClient(). First use downloads the barcode model
+    // via Play services — the scanner is silent until that lands, so the
+    // Settings screen also offers manual payload paste as a fallback.
     private val scanner: BarcodeScanner = BarcodeScanning.getClient()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -75,7 +76,9 @@ class QrScanActivity : AppCompatActivity() {
                         }
                     }
                 }
-                .addOnFailureListener { }
+                .addOnFailureListener { e ->
+                    android.util.Log.w("QrScan", "Barcode scan failed", e)
+                }
                 .addOnCompleteListener { imageProxy.close() }
         } else {
             imageProxy.close()
