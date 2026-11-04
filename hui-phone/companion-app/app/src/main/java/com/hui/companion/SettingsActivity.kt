@@ -8,7 +8,6 @@ import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
-import android.widget.EditText
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
@@ -69,17 +68,6 @@ class SettingsActivity : AppCompatActivity() {
         authStatusText = findViewById(R.id.authStatusText)
         authScanButton = findViewById(R.id.authScanButton)
         authSignOutButton = findViewById(R.id.authSignOutButton)
-
-        // Manual fallback: paste the QR payload JSON (e.g. from
-        // hermes_auth_qr.py --json) when the camera can't scan it.
-        findViewById<Button>(R.id.manualApplyButton).setOnClickListener {
-            val raw = findViewById<EditText>(R.id.manualPayloadInput).text.toString().trim()
-            if (raw.isEmpty()) {
-                Toast.makeText(this, "Paste the QR payload first", Toast.LENGTH_SHORT).show()
-            } else {
-                applyQrPayload(raw)
-            }
-        }
 
         // Authentication: QR scan button
         authScanButton.setOnClickListener {

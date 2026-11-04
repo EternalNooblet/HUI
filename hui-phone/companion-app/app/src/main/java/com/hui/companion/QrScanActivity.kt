@@ -23,8 +23,7 @@ class QrScanActivity : AppCompatActivity() {
     private val cameraExecutor = Executors.newSingleThreadExecutor()
     // ML Kit 18.3.1 (play-services-mlkit-barcode-scanning): factory is
     // BarcodeScanning.getClient(). First use downloads the barcode model
-    // via Play services — the scanner is silent until that lands, so the
-    // Settings screen also offers manual payload paste as a fallback.
+    // via Play services; failures are logged so they surface in logcat.
     private val scanner: BarcodeScanner = BarcodeScanning.getClient()
 
     override fun onCreate(savedInstanceState: Bundle?) {
