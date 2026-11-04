@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
-Revoke a phone QR/token (per-token deauthentication, option C).
+Record a phone QR/token in server/revoked_tokens.json.
 
-Adds the token's jti (or SHA-256 fingerprint for legacy pre-jti tokens)
-to server/revoked_tokens.json. companion_wss_server checks that file on
-every WebSocket handshake (401 if revoked) and, via its revoked_watcher,
-closes live connections within ~5s of revocation.
+HISTORY (direct mode): per-token revocation used to be enforced by
+companion_wss_server, which checked this file on every WebSocket
+handshake. That server is deleted (DIRECT_PLAN.md) — hermes serve
+accepts any valid HMAC blob until its exp, so this file is now only a
+record of intent, NOT an enforcement point. True revocation in direct
+mode means rotating dashboard.basic_auth.secret (invalidates ALL
+outstanding blobs; phones must rescan).
 
 Usage:
     python3 hermes_revoke_token.py --jti <jti from QR payload>
     python3 hermes_revoke_token.py --token <signed token>
     python3 hermes_revoke_token.py --payload-file payload.json   # QR --json output
     python3 hermes_revoke_token.py --list                        # show revoked entries
-
-The same QR code will then fail with 401 "revoked" until the phone is
-re-scanned with a fresh hermes_auth_qr.py QR.
 """
 import argparse
 import base64
@@ -100,8 +100,8 @@ def main() -> None:
         data["jti"] = sorted(set(data["jti"]))
         data["fingerprints"] = sorted(set(data["fingerprints"]))
         save(data)
-        print(f"saved to {REVOKED_FILE} — live connections drop within ~5s, "
-              "new handshakes get 401 revoked")
+        print(f"saved to {REVOKED_FILE} — NOTE: direct mode does not enforce "
+              "this list; rotate dashboard.basic_auth.secret to truly revoke")
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@
 <img src="face%20only%20-%20canvas.png" width="420" alt="HUI app icon — face canvas">
 </p>
 
-<p align="center">Android companion app. The phone is a sensor client; all heavy compute runs on the server over WSS/TLS.</p>
+<p align="center">Android app that talks directly to <code>hermes serve</code> over a plain LAN WebSocket — chat, voice input, and spoken replies, no middle server.</p>
 
 ## Features
 
@@ -13,7 +13,7 @@
 - **Image and voice chat** — image input, voice input, spoken replies.
 - **Old phone compatible** — Android 8.1+ (API 27, 2017+).
 - **Authentication** — native Hermes integration using `hermes serve`. Easy QR pairing that works through any text terminal.
-- **Encryption** — WSS/TLS in transit, tokens in encrypted storage.
+- **Encrypted storage** — the pairing token lives in EncryptedSharedPreferences, never in code.
 
 https://github.com/user-attachments/assets/fbce7eac-1f51-4752-bd6c-aa67fb4100d8
 
@@ -24,11 +24,12 @@ walkthrough with checks for every step (backend, auth, server, voice, QR).
 That's the canonical guide; the summary below is just the outline.
 
 1. Download the APK and the server zip from the latest GitHub Release.
-2. Unzip the server zip, run `./install.sh`, then start the server
-   (`companion_wss_server.py`).
-3. Install the APK on your phone, grant camera + mic when it asks.
-4. On the server machine run `hui-qr` — this prints the QR code.
-5. Scan the QR in the app (Settings → Authentication).
+2. Unzip the server zip and run `./install.sh` (deps + QR launcher).
+3. Start the backend: `hermes serve --host 0.0.0.0 --port 9119` (or let
+   `hui-qr` start it for you).
+4. Install the APK on your phone, grant camera + mic when it asks.
+5. On the server machine run `hui-qr` — this prints the QR code.
+6. Scan the QR in the app (Settings → Authentication).
 
 ## Run it
 
@@ -40,16 +41,21 @@ Building the app from source instead of downloading the APK:
 `cd hui-phone/companion-app && ./gradlew assembleRelease`, then
 `adb install -r app/build/outputs/apk/release/app-release.apk`.
 
-## Protocol (WSS)
+## Protocol (direct to hermes serve)
 
-- Phone → server: `hello`, then events (battery, screen, notification, audio)
-- Server → phone: `welcome` (config), `command` (`speak`, `screen_action`, `launch_app`, `config`)
+- Phone → `ws://<lan>:9119/api/ws?token=<blob>`: JSON-RPC —
+  `client.capabilities`, `session.create`/`session.resume`,
+  `prompt.submit`, `image.attach`.
+- Serve → phone: `gateway.ready`, `message.start/delta/complete`,
+  server requests (`approval`, `clarify`, `sudo`, `secret`, `vault.*`).
+- Voice: WAV → `POST /api/audio/transcribe` (Bearer blob); images →
+  `POST /api/chat/image-upload`.
 
 ## Troubleshooting
 
-- WSS won't connect: is the server running? `ss -tlnp | grep 8081`
-- Service won't start: `adb logcat -s CompanionService:V Transport:V`
-- Cert errors: the app accepts the server's self-signed cert (the signed token is what authenticates the server).
+- Won't connect: is hermes serve up? `ss -tlnp | grep 9119`
+- App logs: `adb logcat -s Transport:V VoiceInput:V Transcriber:V`
+- 401/403 on connect: the QR token expired or was revoked — scan a fresh QR.
 
 ## License
 

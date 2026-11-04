@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false">
+    <!-- Direct mode (DIRECT_PLAN.md): plain ws/http on LAN first pass.
+         Tailscale/HTTPS comes later as a network swap. -->
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
             <certificates src="user" />

@@ -5,10 +5,6 @@ import android.os.Looper
 import androidx.appcompat.app.AppCompatActivity
 import com.hui.companion.db.ChatSessionSummary
 import com.hui.companion.db.MessageRepositoryProvider
-import com.hui.companion.event.ChatEvent
-import com.hui.companion.event.EventBus
-import com.hui.companion.event.VoiceStartEvent
-import com.hui.companion.transport.CommandExecutor
 import com.hui.companion.transport.Transport
 import com.hui.companion.ui.PromptInputLayout
 import kotlinx.coroutines.CoroutineScope
@@ -21,13 +17,14 @@ import kotlinx.coroutines.launch
  * VoiceUi — one session, one window, all modalities.
  *
  * Voice is a turn origin inside the shared chat session, not a mode:
- * tap mic -> stream PCM -> server STT -> bridge -> `speak` reply.
+ * tap mic -> record WAV -> POST /api/audio/transcribe -> prompt.submit.
  * The reply always lands as an assistant bubble; native TTS read-out
- * happens only for voice-originated turns (CommandExecutor drives
- * that). Text/image turns arrive as `chat_reply` and never speak.
+ * happens only for voice-originated turns (MainActivity wires Transport's
+ * onAssistantReply to CommandExecutor.speakText). Text/image turns arrive
+ * as message.complete with voiceOrigin=false and never speak.
  *
- * Server echo of the user's own words arrives as `voice_transcript`
- * and lands as the user bubble before the reply.
+ * The STT transcript lands as the user bubble (handleVoiceTranscript)
+ * before the reply.
  */
 object VoiceUi {
 
@@ -60,9 +57,7 @@ object VoiceUi {
         act: AppCompatActivity,
         chatRv: com.hui.companion.ui.ChatRecyclerView,
         promptInput: PromptInputLayout,
-        eventBus: EventBus,
         transport: Transport,
-        commandExecutor: CommandExecutor,
         thinking: com.hui.companion.ui.ThinkingBarView? = null
     ) {
         activity = act
@@ -85,10 +80,10 @@ object VoiceUi {
 
         // Setup PromptInputLayout callbacks
         promptInputLayout?.setOnSendListener { text ->
-            sendChatMessage(text, eventBus, transport)
+            sendChatMessage(text, transport)
         }
         promptInputLayout?.setOnVoiceClickListener {
-            toggleVoiceRecording(eventBus, transport)
+            toggleVoiceRecording(transport)
         }
     }
 
@@ -153,16 +148,16 @@ object VoiceUi {
     fun observeSessions(): Flow<List<ChatSessionSummary>> =
         messageRepository?.observeSessions() ?: kotlinx.coroutines.flow.flowOf(emptyList())
 
-    /** Tap mic: start recording; tap again: stop and send. */
-    fun toggleVoiceRecording(eventBus: EventBus, transport: Transport) {
+    /** Tap mic: start recording; tap again: stop, transcribe, submit. */
+    fun toggleVoiceRecording(transport: Transport) {
         if (voiceRecording) {
             stopVoiceRecording()
         } else {
-            startVoiceRecording(eventBus, transport)
+            startVoiceRecording(transport)
         }
     }
 
-    private fun startVoiceRecording(eventBus: EventBus, transport: Transport) {
+    private fun startVoiceRecording(transport: Transport) {
         val act = activity ?: return
         // Same gate as sendChatMessage: starting while unreachable burns
         // the mic and drops every chunk locally with no feedback.
@@ -195,15 +190,13 @@ object VoiceUi {
         currentVoiceSession = sessionId
 
         voiceInput = VoiceInput(
-            act, eventBus, sessionId,
+            act, sessionId,
+            onWavReady = { wav -> transcribeAndSubmit(wav, sessionId, transport) },
             onAutoCancel = { mainHandler.post { onVoiceTerminal(cancelled = true) } },
             onHardCap = { mainHandler.post { onVoiceTerminal(cancelled = false, hardCapped = true) } },
             onError = { message -> mainHandler.post { onVoiceError(message) } }
         )
         voiceInput?.start()
-
-        val payload = VoiceStartEvent.VoiceStartPayload(sessionId)
-        eventBus.tryPost(VoiceStartEvent(payload))
 
         voiceRecording = true
         isListening = true
@@ -214,8 +207,9 @@ object VoiceUi {
     }
 
     private fun stopVoiceRecording() {
-        voiceInput?.postVoiceSend()
-        voiceInput?.cancel()
+        // Tap-stop: VoiceInput finalizes the WAV and calls onWavReady,
+        // which transcribes + submits (async — UI already left listening).
+        voiceInput?.stop()
         voiceInput = null
 
         voiceRecording = false
@@ -266,8 +260,44 @@ object VoiceUi {
     }
 
     /**
-     * Server -> phone `voice_transcript`: the user's own words, echoed
-     * back before the reply. Inserts the user bubble in the shared
+     * WAV ready (tap-stop / hard cap): transcribe via the gateway, show the
+     * transcript as the user bubble, then submit it as a voice turn.
+     * Runs the POST off the main thread; UI hops back for the bubble.
+     */
+    private fun transcribeAndSubmit(wav: java.io.File, sessionId: String, transport: Transport) {
+        val scope = CoroutineScope(Dispatchers.IO)
+        scope.launch {
+            val transcript = try {
+                Transcriber.transcribe(wav)
+            } catch (e: Exception) {
+                null
+            } finally {
+                try { wav.delete() } catch (_: Exception) {}
+            }
+            mainHandler.post {
+                if (transcript == null) {
+                    stopThinking()
+                    toast("Voice failed — check connection, tap mic to retry")
+                    boop()
+                    return@post
+                }
+                if (transcript.isBlank()) {
+                    stopThinking()
+                    toast("No speech detected — tap mic to retry")
+                    boop()
+                    return@post
+                }
+                handleVoiceTranscript(transcript, sessionId)
+                if (!transport.submitPrompt(transcript, emptyList(), voiceOrigin = true)) {
+                    stopThinking()
+                    toast("Connecting… voice not sent yet. Try again in a moment.")
+                }
+            }
+        }
+    }
+
+    /**
+     * The user's own words from STT. Inserts the user bubble in the shared
      * session. Never touches the text input.
      */
     fun handleVoiceTranscript(text: String, voiceSession: String) {
@@ -277,34 +307,20 @@ object VoiceUi {
         scope.launch {
             messageRepository?.insertMessage("user", text, session)
         }
-        // STT done — the bridge is now thinking. Flip the bar so it
+        // STT done — the gateway is now thinking. Flip the bar so it
         // doesn't sit on "Transcribing…" through the Hermes turn.
         showThinking()
     }
 
-    fun handleVoiceState(state: String, voiceSession: String) {
-        when (state) {
-            "received" -> showTranscribing()
-            "transcribing" -> showTranscribing()
-            "failed" -> {
-                voiceRecording = false
-                isListening = false
-                voiceInput = null
-                activity?.runOnUiThread {
-                    promptInputLayout?.getVoiceButton()?.isPressed = false
-                }
-                stopThinking()
-                toast("Voice failed — tap mic to retry")
-                boop()
-            }
-            else -> {}
-        }
+    /** Keep the thinking bar alive while a reply streams (Transport
+     *  onTurnProgress). Resets the hide timer without relabelling. */
+    fun nudgeThinking() {
+        mainHandler.removeCallbacks(thinkingTimeout)
+        mainHandler.postDelayed(thinkingTimeout, THINKING_TIMEOUT_MS)
     }
 
     /** Voice-originated assistant reply: bubble + native TTS. The
-     *  CommandExecutor path already shows text; this only adds the
-     *  bubble insert (shared with chat replies) — TTS stays in
-     *  CommandExecutor via Config voice/pitch. */
+     *  MainActivity wiring adds TTS via CommandExecutor.speakText. */
     fun handleVoiceReply(text: String, voiceSession: String) {
         handleAssistantBubble(text, voiceSession)
     }
@@ -323,7 +339,6 @@ object VoiceUi {
 
     private fun sendChatMessage(
         text: String,
-        eventBus: EventBus,
         transport: Transport
     ): Boolean {
         val trimmedText = text.trim()
@@ -374,25 +389,19 @@ object VoiceUi {
 
         // Checks passed — now consume the attachments.
         val taken = com.hui.companion.util.AttachmentState.takeAll()
-        // Local echo renders through MessageViewHolder markdown: include
-        // every image, even alongside text (prompt-kit Image inside
-        // MessageContent), so the sent image is visible in history.
-        val imageMarkdown = taken.joinToString("\n") { "![${it.name}](${it.url})" }
+        // Local echo renders through MessageViewHolder markdown. The echo
+        // uses the LOCAL content uri (Pending.id) so history images render
+        // from the phone copy; the wire path (Pending.url, the gateway
+        // path from /api/chat/image-upload) goes via image.attach inside
+        // Transport — the prompt text itself carries no URLs.
+        val imageMarkdown = taken.joinToString("\n") { "![${it.name}](${it.id})" }
         val echoText = when {
             trimmedText.isNotEmpty() && imageMarkdown.isNotEmpty() -> "$trimmedText\n\n$imageMarkdown"
             trimmedText.isNotEmpty() -> trimmedText
             else -> imageMarkdown
         }
-        // Wire protocol carries one structured image (image_url); extra
-        // images ride as markdown in text, which the server's
-        // _enrich_attachments resolves uniformly.
-        val first = taken.firstOrNull()
-        val extraMarkdown = taken.drop(1).joinToString("\n") { "![${it.name}](${it.url})" }
-        val payloadText = when {
-            trimmedText.isNotEmpty() && extraMarkdown.isNotEmpty() -> "$trimmedText\n\n$extraMarkdown"
-            trimmedText.isNotEmpty() -> trimmedText
-            else -> extraMarkdown
-        }
+        // Attachments ride as image.attach RPCs; text is just text.
+        val payloadText = trimmedText.ifEmpty { "Describe the attached image." }
 
         // Add user message immediately to UI (markdown renders as an image)
         val scope = CoroutineScope(Dispatchers.IO)
@@ -400,9 +409,20 @@ object VoiceUi {
             messageRepository?.insertMessage("user", echoText, session)
         }
 
-        // Send chat event (input is cleared by PromptInputLayout on true)
-        val payload = ChatEvent.ChatPayload(payloadText, session, first?.url, first?.name)
-        eventBus.tryPost(ChatEvent(payload))
+        // Submit directly (input is cleared by PromptInputLayout on true).
+        // Socket down -> restore the attachments so nothing is lost.
+        val sent = transport.submitPrompt(payloadText, taken.map { it.url }, voiceOrigin = false)
+        if (!sent) {
+            com.hui.companion.util.AttachmentState.restore(taken)
+            activity?.runOnUiThread {
+                android.widget.Toast.makeText(
+                    activity,
+                    "Connecting… message not sent yet. Try again in a moment.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
+            return false
+        }
         startThinking()
         return true
     }

@@ -1,9 +1,9 @@
 # Companion App — Android client
 
-The Android half of [HUI Phone](../README.md). Connects to the
-server in [`../server/`](../server/) over WSS and pushes sensor events;
-receives commands (speak, screen actions, app launch) and shows a
-dual-mode voice/text chat UI.
+The Android half of [HUI Phone](../README.md). Connects directly to
+`hermes serve` (plain LAN WebSocket, `ws://<lan>:9119/api/ws?token=…`)
+and shows a chat UI with voice input and spoken replies. QR pairing
+lives in [`../server/`](../server/) (`hui-qr`).
 
 ## Build & install
 
@@ -19,23 +19,21 @@ Needs Android 8.1+ (API 27), camera + microphone.
 
 ## Setup on the phone
 
-1. Open the app and connect (QR or manual server URL).
-2. Grant camera, microphone, and notification access when prompted.
-3. The foreground service keeps the connection alive in the background.
+1. Open the app and connect (QR scan in Settings).
+2. Grant camera + microphone when prompted.
+3. Chat away — the app owns the one gateway socket while it's open.
 
-## Events → server
+## Wire (direct to hermes serve)
 
-| Event | Trigger |
-|-------|---------|
-| `attention` | Gaze/voice activity (on-device model) |
-| `battery` | Every 60s + on change |
-| `notification` | New notification from allowlisted apps |
-| `screen` | Screen state change |
-| `audio` | 100ms audio chunks for speech-to-text |
+| Direction | What |
+|-----------|------|
+| Phone → gateway | `client.capabilities`, `session.create`/`session.resume`, `prompt.submit`, `image.attach` |
+| Gateway → phone | `gateway.ready`, `message.start/delta/complete`, server requests (`approval`, `clarify`, `sudo`, `secret`, `vault.*`) |
+| Voice | WAV → `POST /api/audio/transcribe` (Bearer blob) |
+| Images | → `POST /api/chat/image-upload` (Bearer blob) |
+| Replies | Assistant bubble; Android TTS read-out for voice-origin turns only |
 
-## Commands ← server
-
-`speak` (TTS), `screen_action`, `launch_app`, `config` (timing intervals).
+See [`DIRECT_PLAN.md`](../DIRECT_PLAN.md) for the full contract.
 
 ## License
 

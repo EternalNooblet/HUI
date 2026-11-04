@@ -14,7 +14,6 @@ import coil.ImageLoader
 import coil.request.ImageRequest
 import com.hui.companion.R
 import com.hui.companion.util.Config
-import com.hui.companion.util.PinnedTls
 import timber.log.Timber
 
 /** ImageMessageView
@@ -36,12 +35,12 @@ class ImageMessageView @JvmOverloads constructor(
     private var imageView: ImageView? = null
     private var progressBar: ProgressBar? = null
     private var errorText: TextView? = null
-    // Server uploads are fetched over the self-signed LAN cert, so Coil must
-    // share the pinned client used for the WSS /upload calls. No cert data
-    // is baked in (the signed token authenticates the server).
+    // History images are mostly local content URIs (direct mode: the echo
+    // markdown points at the phone copy). Plain OkHttp covers any http(s)
+    // sources — the gateway is plain ws/http on LAN now, no pinned cert.
     private val imageLoader: ImageLoader by lazy {
         ImageLoader.Builder(context)
-            .okHttpClient { PinnedTls.okHttpClient() }
+            .okHttpClient { okhttp3.OkHttpClient() }
             .build()
     }
 

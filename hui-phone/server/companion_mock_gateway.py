@@ -21,6 +21,9 @@ Route (mode/shape in the path so the bridge's "?token=" append stays clean):
   ws://127.0.0.1:<port>/ws/ok/msg                    text under params.message
   ws://127.0.0.1:<port>/ws/drop_after_submit/<shape> drop right after receipt
   ws://127.0.0.1:<port>/ws/reject/<shape>            every token → HTTP 403
+  ws://127.0.0.1:<port>/api/ws?mode=&shape=          the direct phone's URL
+    (sends the `gateway.ready` event first, like hermes serve, so the
+    phone's ready->bootstrap path is testable; the bridge ignores it)
 
 Usage: companion_mock_gateway.py <port>   (env MOCK_FRAME_LOG = jsonl path)
 Every frame the bridge sends is logged there — the test's oracle for framing."""
@@ -70,9 +73,14 @@ def event_frames(shape, full_text):
 
 
 async def gw_handler(request):
-    parts = request.path.split('/')  # /ws/<mode>/<shape>
-    mode = parts[2] if len(parts) > 2 else 'ok'
-    shape = parts[3] if len(parts) > 3 else 'a'
+    parts = request.path.split('/')  # /ws/<mode>/<shape> or /api/ws?mode=&shape=
+    direct = request.path == '/api/ws'
+    if direct:
+        mode = request.query.get('mode', 'ok')
+        shape = request.query.get('shape', 'a')
+    else:
+        mode = parts[2] if len(parts) > 2 else 'ok'
+        shape = parts[3] if len(parts) > 3 else 'a'
 
     token = request.query.get('token')
     if mode == 'reject' or not token_ok(token):
@@ -81,6 +89,15 @@ async def gw_handler(request):
 
     ws = web.WebSocketResponse()
     await ws.prepare(request)
+
+    if direct:
+        # hermes serve's first frame: the gateway.ready event (skin payload
+        # is irrelevant to the phone — it only gates bootstrap on it).
+        await ws.send_str(json.dumps({'jsonrpc': '2.0', 'method': 'event',
+                                      'params': {'type': 'gateway.ready',
+                                                 'payload': {'skin': {'name': 'mock'},
+                                                             'change_events': False,
+                                                             'replay_epoch': 'mock'}}}))
 
     async for msg in ws:
         if msg.type.name != 'TEXT':
@@ -143,9 +160,12 @@ async def main():
     app = web.Application()
     app.router.add_get('/ws/{mode}/{shape}', gw_handler)
     app.router.add_get('/ws/{mode}', gw_handler)
+    app.router.add_get('/api/ws', gw_handler)
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, '127.0.0.1', port)
+    # 0.0.0.0 so the LAN phone can reach the fixture at <lan-ip>:<port>
+    # (the bridge/matrix tests dial 127.0.0.1, which 0.0.0.0 still serves).
+    site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
     print('mock gateway ready port=' + str(port), flush=True)
     try:

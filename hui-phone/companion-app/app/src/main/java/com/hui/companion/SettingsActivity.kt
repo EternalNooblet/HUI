@@ -79,13 +79,9 @@ class SettingsActivity : AppCompatActivity() {
         }
         // Unauthenticate: local sign-out (server-side revocation is
         // hermes_revoke_token.py). Shown only once authenticated.
+        // MainActivity.onResume closes the socket on return.
         authSignOutButton.setOnClickListener {
             Config.clearAuthToken()
-            // Close the service's socket too — clearing the token alone
-            // leaves it open and events would still reach the server.
-            val svc = Intent(this, com.hui.companion.service.CompanionService::class.java)
-                .setAction(com.hui.companion.service.CompanionService.ACTION_DISCONNECT)
-            try { startService(svc) } catch (e: Exception) { Timber.w(e, "disconnect intent failed") }
             updateAuthStatus()
             Toast.makeText(this, "Unauthenticated", Toast.LENGTH_SHORT).show()
             Timber.i("Unauthenticated (token cleared)")
@@ -128,29 +124,36 @@ class SettingsActivity : AppCompatActivity() {
         qrLauncher.launch(Intent(this, QrScanActivity::class.java))
     }
 
+    /**
+     * Direct QR payload (hermes_auth_qr.py):
+     *   {"ws_url":"ws://<lan>:9119/api/ws","base_url":"http://<lan>:9119",
+     *    "token":"<signed blob>",...}
+     * Legacy companion payloads (wss://<lan>:8081/ws) are accepted and
+     * re-pointed at the gateway: the old port is repaired to :9119 by
+     * Config.normalizeBase, so an old QR still works.
+     */
     private fun applyQrPayload(raw: String?) {
         if (raw.isNullOrEmpty()) return
         try {
             val obj = com.google.gson.JsonParser.parseString(raw).asJsonObject
             val wsUrl = obj.get("ws_url")?.asString
+            val baseUrl = obj.get("base_url")?.asString
             val token = obj.get("token")?.asString
             val ip = obj.get("ip")?.asString
-            val port = obj.get("port")?.asInt ?: 8081
-            // Derive server URL: ws_url minus /ws, else from ip/port
+            val port = obj.get("port")?.asInt
+            // Prefer the explicit base; else derive from ws_url; else
+            // ip + (gateway port 9119 — never the legacy 8081).
             val serverUrl = when {
-                !wsUrl.isNullOrEmpty() -> wsUrl.removeSuffix("/ws").replace("wss://", "https://").replace("ws://", "http://")
-                !ip.isNullOrEmpty() -> "https://$ip:$port"
+                !baseUrl.isNullOrEmpty() -> baseUrl
+                !wsUrl.isNullOrEmpty() -> wsUrl
+                !ip.isNullOrEmpty() -> "http://$ip:${port ?: 9119}"
                 else -> ""
             }
             if (serverUrl.isNotEmpty()) Config.setServerUrl(serverUrl)
             if (!token.isNullOrEmpty()) Config.setAuthToken(token)
             updateAuthStatus()
-            // Token was stored after the transports started (and were
-            // blocked for lack of auth) — trigger the service connect now.
-            // MainActivity's own transport connects in onResume.
-            val svc = Intent(this, com.hui.companion.service.CompanionService::class.java)
-                .setAction(com.hui.companion.service.CompanionService.ACTION_CONNECT)
-            try { startService(svc) } catch (e: Exception) { Timber.w(e, "connect intent failed") }
+            // MainActivity.onResume connects (or reconnects) now that a
+            // token exists — no service intent anymore.
             Toast.makeText(this, "Authenticated", Toast.LENGTH_SHORT).show()
             Timber.i("QR auth applied")
         } catch (e: Exception) {
@@ -161,7 +164,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun updateAuthStatus() {
         val token = Config.authToken ?: Config.loadAuthToken()
-        val url = Config.wsUrl
+        val url = Config.wsUrlForLog()
         val authed = !token.isNullOrEmpty()
         authStatusText.text = if (authed) "Status: Connected to $url" else "Status: Not authenticated"
         authSignOutButton.visibility = if (authed) View.VISIBLE else View.GONE

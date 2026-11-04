@@ -3,7 +3,6 @@ package com.hui.companion
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -11,13 +10,12 @@ import android.widget.TextView
 import android.widget.ImageButton
 import android.text.TextWatcher
 import android.text.Editable
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
+import com.google.gson.JsonObject
 import com.hui.companion.util.Config
-import com.hui.companion.service.CompanionService
-import com.hui.companion.BuildConfig
-import com.hui.companion.event.EventBus
 import com.hui.companion.transport.Transport
 import com.hui.companion.transport.CommandExecutor
 import com.hui.companion.ui.ChatRecyclerView
@@ -35,15 +33,11 @@ import com.hui.companion.ui.toSessionRows
 import com.hui.companion.voice.VoiceUi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.channels.consumeEach
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import okhttp3.MediaType
-import okhttp3.MultipartBody
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import timber.log.Timber
 
@@ -59,11 +53,8 @@ class MainActivity : AppCompatActivity() {
     private var sessionCache = listOf<com.hui.companion.db.ChatSessionSummary>()
     private lateinit var attachmentPicker: AttachmentPicker
 
-    private val eventBus = EventBus()
     private lateinit var transport: Transport
     private lateinit var commandExecutor: CommandExecutor
-    private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main)
-    private var voiceLoopStarted = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
             super.onCreate(savedInstanceState)
@@ -84,7 +75,7 @@ class MainActivity : AppCompatActivity() {
             stickToBottomFab = findViewById(R.id.stickToBottomFab)
 
             commandExecutor = CommandExecutor(this)
-            transport = Transport(this, eventBus, commandExecutor)
+            transport = Transport(this)
 
             // --- Session 7: new component wiring ---
 
@@ -165,9 +156,7 @@ class MainActivity : AppCompatActivity() {
                 this,
                 chatRecyclerView,
                 promptInputLayout,
-                eventBus,
                 transport,
-                commandExecutor,
                 findViewById(R.id.thinkingBarView)
             )
 
@@ -178,8 +167,8 @@ class MainActivity : AppCompatActivity() {
                 promptInputLayout.refreshSendState()
             }
 
-            wireSessions(); startVoiceLoops()
-            requestPermissionsAndAutoStart()
+            wireSessions(); wireTransport()
+            requestPermissions()
         }
 
 
@@ -236,6 +225,13 @@ class MainActivity : AppCompatActivity() {
                 if (::systemBannerView.isInitialized) {
                     systemBannerView.show("Disconnected from server", SystemBannerView.Variant.ERROR, 4000)
                 }
+            } else if (transport.needsReconnect()) {
+                // QR rescan changed the target while the old socket was
+                // still open — re-point it (transcribe/upload already use
+                // the new base, so a stale socket splits the app).
+                Timber.i("Server changed via QR — reconnecting transport")
+                transport.disconnect()
+                transport.connect()
             } else if (!transport.isConnected) {
                 // Authenticated (e.g. just scanned a QR) but the socket was
                 // never opened — connect() was blocked at startup for lack
@@ -260,34 +256,186 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun startVoiceLoops() {
-        if (voiceLoopStarted) return
-        voiceLoopStarted = true
-
-        scope.launch {
-            eventBus.events.consumeEach { event ->
-                transport.send(event)
+    /**
+     * Wire Transport callbacks and open the one gateway socket. Replies land
+     * here: voice-origin turns get bubble + Android TTS, text turns bubble
+     * only. Server requests (srq-…) are answered via dialogs below.
+     */
+    private fun wireTransport() {
+        transport.onAssistantReply = { text, voiceOrigin ->
+            val sid = VoiceUi.currentSessionId() ?: ""
+            if (voiceOrigin) {
+                VoiceUi.handleVoiceReply(text, sid)
+                commandExecutor.speakText(text)
+            } else {
+                VoiceUi.handleChatReply(text, sid)
             }
         }
-
-        scope.launch {
-            eventBus.commands.consumeEach { command ->
-                val result = commandExecutor.execute(command)
-                Timber.d("Voice command executed: ${command.command} -> $result")
-            }
-        }
-
+        transport.onTurnProgress = { VoiceUi.nudgeThinking() }
+        transport.onServerRequest = { req -> handleServerRequest(req) }
         transport.connect()
-        Timber.i("Voice loops started")
+        Timber.i("Transport wired")
     }
 
-    private fun isServiceRunning(): Boolean {
-        val manager = getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager
-        return manager.getRunningServices(Int.MAX_VALUE)
-            .any { it.service.className == CompanionService::class.java.name }
+    // ------------------------------------------------- server requests
+
+    private fun handleServerRequest(req: Transport.ServerRequest) {
+        if (isFinishing || isDestroyed) {
+            declineServerRequest(req, "activity gone")
+            return
+        }
+        when (req.method) {
+            "approval" -> showApprovalDialog(req)
+            "clarify" -> showClarifyDialog(req)
+            "sudo", "secret", "vault.unlock_prompt", "vault.save_login", "vault.code" ->
+                showValueDialog(req)
+            // Desktop-only bridges (setup_beat, preview/terminal/window reads,
+            // tour, theme): decline per the contract (-32601), never hang.
+            else -> {
+                Timber.i("srq declined (no phone handler): ${req.method}")
+                transport.respondServerRequestError(req.id, -32601, "method not supported on phone client")
+            }
+        }
     }
 
-    private fun requestPermissionsAndAutoStart() {
+    private fun declineServerRequest(req: Transport.ServerRequest, why: String) {
+        when (req.method) {
+            "approval" -> transport.respondServerRequest(
+                req.id, JsonObject().apply { addProperty("choice", "deny") })
+            "clarify" -> {
+                val answers = JsonObject()
+                req.params.get("questions")?.takeIf { it.isJsonArray }?.asJsonArray
+                    ?.forEach { q ->
+                        q.takeIf { it.isJsonObject }?.asJsonObject
+                            ?.get("qid")?.takeIf { it.isJsonPrimitive }?.asString
+                            ?.let { answers.add(it, com.google.gson.JsonNull.INSTANCE) }
+                    }
+                transport.respondServerRequest(
+                    req.id, JsonObject().apply { add("answers", answers) })
+            }
+            else -> transport.respondServerRequest(
+                req.id, JsonObject().apply { addProperty("value", "") })
+        }
+        Timber.i("srq safe-declined (${req.method}, $why)")
+    }
+
+    private fun showApprovalDialog(req: Transport.ServerRequest) {
+        val p = req.params
+        val desc = p.get("description")?.takeIf { it.isJsonPrimitive }?.asString ?: ""
+        val cmd = p.get("command")?.takeIf { it.isJsonPrimitive }?.asString ?: ""
+        val message = buildString {
+            if (desc.isNotEmpty()) appendLine(desc)
+            if (cmd.isNotEmpty()) append(cmd)
+        }.ifBlank { "A command needs approval." }
+        AlertDialog.Builder(this)
+            .setTitle("Approval requested")
+            .setMessage(message)
+            .setCancelable(false)
+            .setPositiveButton("Allow once") { _, _ ->
+                transport.respondServerRequest(
+                    req.id, JsonObject().apply { addProperty("choice", "once") })
+            }
+            .setNegativeButton("Deny") { _, _ ->
+                transport.respondServerRequest(
+                    req.id, JsonObject().apply { addProperty("choice", "deny") })
+            }
+            .show()
+    }
+
+    private fun showClarifyDialog(req: Transport.ServerRequest) {
+        val questions = req.params.get("questions")?.takeIf { it.isJsonArray }?.asJsonArray
+            ?: run {
+                transport.respondServerRequest(
+                    req.id, JsonObject().apply { add("answers", JsonObject()) })
+                return
+            }
+        val layout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            val pad = (16 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad, pad, pad)
+        }
+        val inputs = mutableListOf<Pair<String, EditText>>()
+        for (q in questions) {
+            val qo = q.takeIf { it.isJsonObject }?.asJsonObject ?: continue
+            val qid = qo.get("qid")?.takeIf { it.isJsonPrimitive }?.asString ?: continue
+            val question = qo.get("question")?.takeIf { it.isJsonPrimitive }?.asString ?: qid
+            val choices = qo.get("choices")?.takeIf { it.isJsonArray }?.asJsonArray
+                ?.joinToString("\n") { it.takeIf { e -> e.isJsonPrimitive }?.asString ?: "" }
+            val label = TextView(this).apply {
+                text = if (choices.isNullOrEmpty()) question else "$question\n$choices"
+            }
+            val input = EditText(this).apply {
+                hint = "Answer (blank = skip)"
+                isSingleLine = false
+            }
+            layout.addView(label)
+            layout.addView(input)
+            inputs.add(qid to input)
+        }
+        val scroll = android.widget.ScrollView(this).apply { addView(layout) }
+        AlertDialog.Builder(this)
+            .setTitle("Clarification needed")
+            .setView(scroll)
+            .setCancelable(false)
+            .setPositiveButton("Submit") { _, _ ->
+                val answers = JsonObject()
+                for ((qid, input) in inputs) {
+                    val v = input.text.toString().trim()
+                    if (v.isEmpty()) answers.add(qid, com.google.gson.JsonNull.INSTANCE)
+                    else answers.addProperty(qid, v)
+                }
+                transport.respondServerRequest(
+                    req.id, JsonObject().apply { add("answers", answers) })
+            }
+            .setNegativeButton("Skip all") { _, _ ->
+                val answers = JsonObject()
+                for ((qid, _) in inputs) answers.add(qid, com.google.gson.JsonNull.INSTANCE)
+                transport.respondServerRequest(
+                    req.id, JsonObject().apply { add("answers", answers) })
+            }
+            .show()
+    }
+
+    private fun showValueDialog(req: Transport.ServerRequest) {
+        val p = req.params
+        fun s(key: String): String =
+            p.get(key)?.takeIf { it.isJsonPrimitive }?.asString ?: ""
+        val (title, message, password) = when (req.method) {
+            "sudo" -> Triple("Sudo password", s("command").ifBlank { "sudo needs a password" }, true)
+            "secret" -> Triple("Secret needed", s("prompt").ifBlank { s("env_var") }, true)
+            "vault.unlock_prompt" -> Triple(
+                "Unlock vault", "Unlock ${s("display_name").ifBlank { s("backend") }}".trim(), true)
+            "vault.save_login" -> Triple(
+                "Save login", "Save a login for ${s("site").ifBlank { s("origin") }}", false)
+            else -> Triple(
+                "One-time code", buildString {
+                    val site = s("site"); if (site.isNotEmpty()) append(site)
+                    val hint = s("hint"); if (hint.isNotEmpty()) append(" — $hint")
+                }.ifBlank { "Enter the code from your device" }, false)
+        }
+        val input = EditText(this).apply {
+            if (password) inputType =
+                android.text.InputType.TYPE_CLASS_TEXT or
+                android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            hint = "Value (blank = skip)"
+        }
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setView(input)
+            .setCancelable(false)
+            .setPositiveButton("Send") { _, _ ->
+                transport.respondServerRequest(
+                    req.id, JsonObject().apply { addProperty("value", input.text.toString()) })
+            }
+            .setNegativeButton("Skip") { _, _ ->
+                transport.respondServerRequest(
+                    req.id, JsonObject().apply { addProperty("value", "") })
+            }
+            .show()
+    }
+
+    private fun requestPermissions() {
         val permissions = mutableListOf<String>()
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
@@ -299,15 +447,13 @@ class MainActivity : AppCompatActivity() {
 
         if (permissions.isNotEmpty()) {
             requestPermissions(permissions.toTypedArray(), 100)
-        } else {
-            startServiceOnly()
         }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 100 && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-            startServiceOnly()
+            Timber.i("Permissions granted")
         } else {
             Timber.w("Permissions denied")
         }
@@ -321,10 +467,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** Upload a picked attachment to the server, then callback with the public URL. */
+    /** Upload a picked attachment to the gateway image store
+     *  (POST /api/chat/image-upload, Bearer blob — probed live), then
+     *  callback with the gateway-visible path for image.attach. */
     private fun uploadAttachment(uri: android.net.Uri, callback: (String) -> Unit) {
-        // Copy content URI to a temp cache file for OkHttp. Keep the original
-        // display name when possible so uploaded filenames look natural.
+        // Copy content URI to a temp cache file for the data_url encode.
+        // Keep the original display name when possible.
         val rawName = runCatching {
             contentResolver.query(uri, null, null, null, null)?.use { c ->
                 if (c.moveToFirst()) c.getString(c.getColumnIndexOrThrow(android.provider.MediaStore.MediaColumns.DISPLAY_NAME)) else null
@@ -350,24 +498,34 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val client = com.hui.companion.util.PinnedTls.okHttpClient()
-        val requestBody = MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart("file", cacheFile.name,
-                RequestBody.create(null, cacheFile))
-            .build()
+        val mime = contentResolver.getType(uri)
+            ?: when (filename.substringAfterLast('.', "").lowercase()) {
+                "png" -> "image/png"
+                "gif" -> "image/gif"
+                "webp" -> "image/webp"
+                else -> "image/jpeg"
+            }
+        val dataUrl = "data:$mime;base64," +
+            android.util.Base64.encodeToString(cacheFile.readBytes(), android.util.Base64.NO_WRAP)
+        // filename may contain chars needing JSON escaping; Gson builds it.
+        val payload = JsonObject().apply {
+            addProperty("data_url", dataUrl)
+            addProperty("filename", filename)
+        }
 
-        // Runtime URL (QR/manual), never a build-time default.
-        val baseUrl = Config.serverUrl.ifBlank { Config.loadServerUrl() }
-        if (baseUrl.isBlank()) {
-            Timber.w("Upload skipped: no server URL configured")
+        val client = OkHttpClient()
+        // Runtime URL (QR), never a build-time default.
+        val baseUrl = Config.httpBaseUrl()
+        val token = Config.authToken ?: Config.loadAuthToken()
+        if (baseUrl.isBlank() || token.isNullOrEmpty()) {
+            Timber.w("Upload skipped: no server URL/token configured")
             callback("")
             return
         }
-        val uploadUrl = baseUrl.replace("wss://", "https://").replace("ws://", "http://") + "/upload"
         val request = Request.Builder()
-            .url(uploadUrl)
-            .post(requestBody)
+            .url(baseUrl + "/api/chat/image-upload")
+            .header("Authorization", "Bearer $token")
+            .post(payload.toString().toRequestBody("application/json".toMediaType()))
             .build()
 
         client.newCall(request).enqueue(object : okhttp3.Callback {
@@ -377,7 +535,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
-                var url = ""
+                var path = ""
                 response.use {
                     if (!response.isSuccessful) {
                         Timber.w("Upload failed: ${response.code}")
@@ -386,23 +544,13 @@ class MainActivity : AppCompatActivity() {
                     val body = response.body?.string() ?: return@use
                     try {
                         val json = com.google.gson.JsonParser.parseString(body).asJsonObject
-                        url = json.get("url").asString
+                        path = json.get("path")?.takeIf { e -> e.isJsonPrimitive }?.asString ?: ""
                     } catch (e: Exception) {
                         Timber.e(e, "Failed to parse upload response: $body")
                     }
                 }
-                val finalUrl = url
-                runOnUiThread { callback(finalUrl) }
+                runOnUiThread { callback(path) }
             }
         })
-    }
-
-    private fun startServiceOnly() {
-        val intent = Intent(this, CompanionService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
-        }
     }
 }

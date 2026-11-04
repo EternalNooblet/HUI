@@ -158,7 +158,8 @@ jobs:
           src = pathlib.Path("hui-phone/server")
           include = sorted(
               [p for p in src.glob("*.py")] +
-              [src / n for n in ("install.sh", "requirements.txt", "AI_SETUP.md") if (src / n).exists()]
+              [src / n for n in ("hui-qr", "install.sh", "requirements.txt", "AI_SETUP.md")
+               if (src / n).exists()]
           )
           out = pathlib.Path("hui-phone-server.zip")
           with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:

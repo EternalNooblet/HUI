@@ -6,48 +6,52 @@ import android.content.pm.PackageManager
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
-import android.util.Base64
 import androidx.core.content.ContextCompat
-import com.hui.companion.event.AudioEvent
-import com.hui.companion.event.EventBus
-import com.hui.companion.event.VoiceCancelEvent
-import com.hui.companion.event.VoiceSendEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.io.ByteArrayOutputStream
+import java.io.File
 import java.util.UUID
 
 /**
- * VoiceInput — one-shot PCM capture for a single voice turn.
+ * VoiceInput — one-shot capture for a single voice turn (DIRECT_PLAN.md).
  *
- * Lifetime: construct on mic tap, [start], then [cancel] (user stop,
- * auto-cancel, hard cap, or error). It owns its [AudioRecord] and its
- * single capture Job; [cancel] is idempotent and safe from any thread.
+ * Tap mic -> record full WAV to file -> tap again -> [stop] finalizes the
+ * WAV and hands it to [onWavReady] (the caller POSTs it to
+ * /api/audio/transcribe). No 100ms chunk streaming anywhere: the gateway
+ * owns STT now.
  *
- * Terminal conditions all fire the supplied callbacks exactly once:
- * [onAutoCancel] (3s sub-threshold RMS), [onHardCap] (60s),
- * [onError] (permission / AudioRecord / read failure). The caller
- * (VoiceUi) is responsible for posting no further sends after a
- * terminal callback — the recorder is already stopped by then.
+ * Lifetime: construct on mic tap, [start], then exactly one of [stop]
+ * (user tap-stop or hard cap) or [cancel] (auto-cancel / error / abandoned).
+ * [stop] and [cancel] are idempotent and safe from any thread; [onWavReady]
+ * fires at most once and only for [stop].
+ *
+ * Terminal callbacks: [onAutoCancel] (3s sub-threshold RMS), [onHardCap]
+ * (60s — still delivers the WAV via [onWavReady]), [onError] (permission /
+ * AudioRecord / read failure — no WAV).
  */
 class VoiceInput(
     private val context: Context,
-    private val eventBus: EventBus,
     private val voiceSession: String,
+    private val onWavReady: (File) -> Unit = {},
     private val onAutoCancel: () -> Unit = {},
     private val onHardCap: () -> Unit = {},
     private val onError: (String) -> Unit = {}
 ) {
     private var job: Job? = null
     @Volatile private var audioRecord: AudioRecord? = null
-    @Volatile private var cancelled = false
-    private var sequence = 0L
+    @Volatile private var finished = false
     private var startTimeMs = 0L
     private var silentStartMs: Long? = null
     private var consecutiveReadErrors = 0
+
+    // Accumulated PCM (s16le, 16 kHz mono) for the whole turn.
+    private val pcm = ByteArrayOutputStream()
+    private val pcmLock = Object()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -64,11 +68,11 @@ class VoiceInput(
 
     fun start() {
         if (job != null) return
-        cancelled = false
-        sequence = 0
+        finished = false
         startTimeMs = System.currentTimeMillis()
         silentStartMs = null
         consecutiveReadErrors = 0
+        synchronized(pcmLock) { pcm.reset() }
 
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED
@@ -118,12 +122,30 @@ class VoiceInput(
         Timber.i("VoiceInput started: session=$voiceSession")
     }
 
-    fun cancel() {
-        if (cancelled) return
-        cancelled = true
+    /** Tap-stop: finalize the WAV file and deliver it via [onWavReady]. */
+    fun stop() {
+        if (finished) return
+        finished = true
         job?.cancel()
         job = null
         stopAndRelease()
+        val wav = writeWavFile()
+        if (wav != null) {
+            Timber.i("VoiceInput WAV ready: ${wav.length()} bytes, session=$voiceSession")
+            onWavReady(wav)
+        } else {
+            onError("No audio recorded")
+        }
+    }
+
+    /** Discard the recording (auto-cancel, error, abandoned). No WAV. */
+    fun cancel() {
+        if (finished) return
+        finished = true
+        job?.cancel()
+        job = null
+        stopAndRelease()
+        synchronized(pcmLock) { pcm.reset() }
         Timber.i("VoiceInput cancelled: session=$voiceSession")
     }
 
@@ -145,9 +167,9 @@ class VoiceInput(
         }
     }
 
-    private suspend fun captureLoop() {
+    private fun captureLoop() {
         val buffer = ShortArray(SAMPLES_PER_CHUNK)
-        while (!cancelled && audioRecord != null) {
+        while (!finished && audioRecord != null) {
             val recorder = audioRecord ?: break
             val read = try {
                 recorder.read(buffer, 0, SAMPLES_PER_CHUNK)
@@ -155,13 +177,13 @@ class VoiceInput(
                 Timber.e(e, "VoiceInput: read threw")
                 -1
             }
-            if (cancelled) break
+            if (finished) break
             if (read <= 0) {
                 consecutiveReadErrors++
                 Timber.w("VoiceInput: read=$read (errors=$consecutiveReadErrors)")
                 if (consecutiveReadErrors >= MAX_CONSECUTIVE_READ_ERRORS) {
-                    onError("Microphone read failed")
                     cleanupAfterTerminal()
+                    onError("Microphone read failed")
                     return
                 }
                 continue
@@ -176,7 +198,6 @@ class VoiceInput(
                 if (silentStartMs == null) silentStartMs = now
                 else if (now - silentStartMs!! >= AUTO_CANCEL_DURATION_MS) {
                     Timber.i("Auto-cancel: sub-threshold RMS (%.1f dB) for ${AUTO_CANCEL_DURATION_MS}ms", rmsDb)
-                    postVoiceCancel()
                     cleanupAfterTerminal()
                     onAutoCancel()
                     return
@@ -185,35 +206,81 @@ class VoiceInput(
                 silentStartMs = null
             }
 
+            // Append this chunk's PCM to the whole-turn buffer.
+            synchronized(pcmLock) {
+                for (i in 0 until read) {
+                    val v = buffer[i].toInt()
+                    pcm.write(v and 0xFF)
+                    pcm.write((v shr 8) and 0xFF)
+                }
+            }
+
             if (now - startTimeMs >= MAX_DURATION_MS) {
                 Timber.i("Hard cap reached: ${MAX_DURATION_MS}ms")
-                postVoiceSend()
-                cleanupAfterTerminal()
+                // Deliver what we have (stop() path), then report the cap.
+                finished = true
+                job = null
+                stopAndRelease()
+                val wav = writeWavFile()
+                if (wav != null) onWavReady(wav) else onError("No audio recorded")
                 onHardCap()
                 return
             }
-
-            val chunk = ShortArray(read).apply { System.arraycopy(buffer, 0, this, 0, read) }
-            val b64 = Base64.encodeToString(shortArrayToBytes(chunk), Base64.NO_WRAP)
-            val payload = AudioEvent.AudioPayload(
-                format = "pcm16",
-                sampleRate = SAMPLE_RATE,
-                channels = 1,
-                durationMs = CHUNK_DURATION_MS,
-                dataBase64 = b64,
-                sequence = sequence++,
-                voiceSession = voiceSession
-            )
-            eventBus.tryPost(AudioEvent(payload))
             // read() is blocking (~100ms); no extra delay here or the
             // cadence doubles and wall-clock drift breaks gap math.
         }
     }
 
     private fun cleanupAfterTerminal() {
-        cancelled = true
+        finished = true
         job = null
         stopAndRelease()
+    }
+
+    /** Standard 44-byte RIFF header + the accumulated PCM, written to a
+     *  cache file (the transcribe POST reads it back as a data_url). */
+    private fun writeWavFile(): File? {
+        val data: ByteArray = synchronized(pcmLock) { pcm.toByteArray() }
+        if (data.isEmpty()) return null
+        val header = ByteArray(44)
+        fun putAscii(off: Int, s: String) {
+            for (i in s.indices) header[off + i] = s[i].code.toByte()
+        }
+        fun putInt(off: Int, v: Int) {
+            header[off] = (v and 0xFF).toByte()
+            header[off + 1] = ((v shr 8) and 0xFF).toByte()
+            header[off + 2] = ((v shr 16) and 0xFF).toByte()
+            header[off + 3] = ((v shr 24) and 0xFF).toByte()
+        }
+        fun putShort(off: Int, v: Int) {
+            header[off] = (v and 0xFF).toByte()
+            header[off + 1] = ((v shr 8) and 0xFF).toByte()
+        }
+        putAscii(0, "RIFF")
+        putInt(4, 36 + data.size)
+        putAscii(8, "WAVE")
+        putAscii(12, "fmt ")
+        putInt(16, 16)                       // PCM fmt chunk size
+        putShort(20, 1)                      // audio format: PCM
+        putShort(22, 1)                      // channels: mono
+        putInt(24, SAMPLE_RATE)
+        putInt(28, SAMPLE_RATE * 2)          // byte rate (mono, s16)
+        putShort(32, 2)                      // block align
+        putShort(34, 16)                     // bits per sample
+        putAscii(36, "data")
+        putInt(40, data.size)
+        return try {
+            val dir = File(context.cacheDir, "voice").apply { mkdirs() }
+            val f = File(dir, "voice-$voiceSession-${System.currentTimeMillis()}.wav")
+            f.outputStream().use { out ->
+                out.write(header)
+                out.write(data)
+            }
+            f
+        } catch (e: Exception) {
+            Timber.e(e, "VoiceInput: WAV write failed")
+            null
+        }
     }
 
     private fun calculateRms(buffer: ShortArray, len: Int): Float {
@@ -223,27 +290,6 @@ class VoiceInput(
             sum += v * v
         }
         return Math.sqrt(sum.toDouble() / len).toFloat() / 32768.0f
-    }
-
-    private fun shortArrayToBytes(arr: ShortArray): ByteArray {
-        val bytes = ByteArray(arr.size * 2)
-        for (i in arr.indices) {
-            val v = arr[i].toInt()
-            bytes[i * 2] = (v and 0xFF).toByte()
-            bytes[i * 2 + 1] = ((v shr 8) and 0xFF).toByte()
-        }
-        return bytes
-    }
-
-    fun postVoiceCancel() {
-        val payload = VoiceCancelEvent.VoiceCancelPayload(voiceSession)
-        eventBus.tryPost(VoiceCancelEvent(payload))
-    }
-
-    fun postVoiceSend() {
-        val durationMs = System.currentTimeMillis() - startTimeMs
-        val payload = VoiceSendEvent.VoiceSendPayload(voiceSession, sequence - 1, durationMs)
-        eventBus.tryPost(VoiceSendEvent(payload))
     }
 
     companion object {

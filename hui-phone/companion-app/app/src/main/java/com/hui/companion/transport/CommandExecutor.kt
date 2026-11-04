@@ -3,82 +3,24 @@ package com.hui.companion.transport
 import android.content.Context
 import android.speech.tts.TextToSpeech
 import com.hui.companion.util.Config
-import com.hui.companion.event.Command
-import com.hui.companion.event.Result
-import com.hui.companion.voice.VoiceUi
 import timber.log.Timber
 
+/**
+ * Assistant-reply speech (DIRECT_PLAN.md): Android native TTS, voice-origin
+ * turns only. The old bridge command channel (speak / chat_reply /
+ * voice_state / voice_transcript / screen_action / launch_app / config)
+ * is gone — replies arrive as message.complete on Transport, which calls
+ * [speakText] for voice-origin turns (wired in MainActivity).
+ */
 class CommandExecutor(private val context: Context) {
-    fun execute(command: Command): Result {
-        Timber.i("Executing command: ${command.command}, payload: ${command.payload}")
-        return when (command.command) {
-            "speak" -> {
-                // Voice-originated reply: bubble (always) + native TTS read-out.
-                command.payload.text?.let { text ->
-                    val voiceSession = command.payload.voiceSession ?: ""
-                    VoiceUi.handleVoiceReply(text, voiceSession)
-                    val voice = command.payload.voice ?: Config.loadVoice()
-                    val pitch = command.payload.pitch ?: Config.loadPitch()
-                    Timber.i("Speaking: $text")
-                    speakWithNativeTts(text, voice, pitch)
-                }
-                Result.Success()
-            }
-            "voice_transcript" -> {
-                // User's own words, echoed by the server before the reply.
-                command.payload.text?.let { text ->
-                    VoiceUi.handleVoiceTranscript(text, command.payload.voiceSession ?: "")
-                }
-                Result.Success()
-            }
-            "chat_reply" -> {
-                // Text/image-originated reply: bubble only, never TTS.
-                command.payload.text?.let { text ->
-                    VoiceUi.handleChatReply(text, command.payload.voiceSession ?: "")
-                }
-                Result.Success()
-            }
-            "screen_action" -> {
-                command.payload.action?.let { action ->
-                    val pm = context.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
-                    when (action) {
-                        "wake" -> {
-                            val wakeLock = pm.newWakeLock(
-                                android.os.PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
-                                android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP, "companion:wake"
-                            )
-                            wakeLock.acquire(5000)
-                        }
-                        "sleep" -> {
-                            Timber.w("Screen sleep requested but requires system permission")
-                        }
-                    }
-                }
-                Result.Success()
-            }
-            "launch_app" -> {
-                command.payload.packageName?.let { pkg ->
-                    context.packageManager.getLaunchIntentForPackage(pkg)?.also { intent ->
-                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                        context.startActivity(intent)
-                    }
-                }
-                Result.Success()
-            }
-            "config" -> {
-                Config.updateFromCommand(command.payload)
-                Result.Success()
-            }
-            "voice_state" -> handleVoiceState(command)
-            else -> Result.UnknownCommand
-        }
-    }
 
-    private fun handleVoiceState(command: Command): Result {
-        val state = command.payload.state ?: command.payload.text ?: ""
-        val voiceSession = command.payload.voiceSession ?: ""
-        VoiceUi.handleVoiceState(state, voiceSession)
-        return Result.Success()
+    /** Speak [text] with the user's saved voice/pitch. No-op on blank. */
+    fun speakText(text: String) {
+        if (text.isBlank()) return
+        val voice = Config.loadVoice()
+        val pitch = Config.loadPitch()
+        Timber.i("Speaking: $text")
+        speakWithNativeTts(text, voice, pitch)
     }
 
     private fun speakWithNativeTts(text: String, voice: String?, pitch: Float?) {

@@ -6,17 +6,15 @@ Starts `hermes serve` if it isn't already listening, mints the signed
 access token for hermes serve's /api/ws, detects the LAN IP, and prints
 a scannable ASCII QR encoding:
 
-    {"ws_url": "wss://<lan-ip>:8081/ws", "ip": "<lan-ip>",
-     "port": 8081, "token": "<signed token>", "exp": <unix ts>}
+    {"ws_url": "ws://<lan-ip>:9119/api/ws", "base_url": "http://<lan-ip>:9119",
+     "token": "<signed token>", "exp": <unix ts>}
 
-ws_url/port point at the phone-facing companion WSS server
-(server/companion_wss_server.py, default :8081), which bridges to
-hermes serve internally — the phone never talks to :9119 directly.
-SettingsActivity.applyQrPayload() stores ws_url (as server URL) + token
-in EncryptedSharedPreferences via Config.setServerUrl/setAuthToken.
+The phone talks DIRECTLY to hermes serve (DIRECT_PLAN.md) — no :8081
+companion server. SettingsActivity.applyQrPayload() stores base_url +
+token in EncryptedSharedPreferences via Config.setServerUrl/setAuthToken.
 
 Usage:
-    python3 hermes_auth_qr.py [--port 9119] [--wss-port 8081]
+    python3 hermes_auth_qr.py [--port 9119]
                               [--ttl 31536000] [--no-start-serve]
                               [--json] [--no-qr]
 
@@ -282,8 +280,8 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Hermes auth QR for the HUI phone")
     ap.add_argument("--port", type=int, default=9119, help="hermes serve port")
     ap.add_argument("--host", default="0.0.0.0", help="hermes serve bind host")
-    ap.add_argument("--wss-port", type=int, default=8081,
-                    help="companion WSS server port the phone connects to")
+    ap.add_argument("--wss-port", type=int, default=9119,
+                    help="deprecated alias for the gateway port (direct mode)")
     ap.add_argument("--ip", default=None, help="override LAN IP detection")
     ap.add_argument("--ttl", type=int, default=365 * 24 * 3600, help="token TTL seconds (default 1 year)")
     ap.add_argument("--no-start-serve", action="store_true",
@@ -300,14 +298,14 @@ def main() -> None:
     ip = args.ip or lan_ip()
     token = mint_token(args.ttl)
     claims = token_claims(token)
-    # Keep the payload minimal so the ASCII QR fits an 80-column terminal
-    # (ip/port are derivable from ws_url; exp is unused by the app).
+    # Keep the payload minimal so the ASCII QR fits an 80-column terminal.
+    # The phone connects DIRECTLY to hermes serve (DIRECT_PLAN.md): plain
+    # ws on LAN, token in the query. jti identifies this one QR/token for
+    # server-side revocation (server/hermes_revoke_token.py --jti ...).
     payload = {
-        "ws_url": f"wss://{ip}:{args.wss_port}/ws",
+        "ws_url": f"ws://{ip}:{args.port}/api/ws",
+        "base_url": f"http://{ip}:{args.port}",
         "token": token,
-        # jti identifies this one QR/token for server-side revocation
-        # (server/hermes_revoke_token.py --jti ...). Settings ignores
-        # unknown fields, so older app builds still work.
         "jti": claims.get("jti", ""),
     }
     payload_str = json.dumps(payload, separators=(",", ":"))
