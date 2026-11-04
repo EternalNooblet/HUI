@@ -12,6 +12,8 @@
 - **Battery efficient** — heavy compute runs on the server. Events batched, no server-side polling.
 - **Image and voice chat** — image input, voice input, spoken replies.
 - **Old phone compatible** — Android 8.1+ (API 27, 2017+).
+- **Authentication** — native Hermes integration. QR pairing prints in any bash terminal.
+- **Encryption** — WSS/TLS in transit, tokens in encrypted storage.
 
 https://github.com/user-attachments/assets/fbce7eac-1f51-4752-bd6c-aa67fb4100d8
 
