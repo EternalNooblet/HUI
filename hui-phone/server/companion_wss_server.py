@@ -122,7 +122,7 @@ def _mint_access_token() -> str:
                           "jti": uuid.uuid4().hex},
                          separators=(",", ":")).encode()
     sig = hmac.new(secret, payload, hashlib.sha256).digest()
-    return base64.b64encode(payload + sig).decode()
+    return base64.urlsafe_b64encode(payload + sig).decode()
 
 def _load_revoked():
     try:
@@ -453,12 +453,40 @@ def _write_wav(name, pcm, rate):
         w.writeframes(pcm)
     return path
 
+def _enrich_attachments(text):
+    """Resolve ![alt](/uploads/name) markdown to real local files before the
+    LLM sees it. The gateway is text-only; a bare relative /uploads/ path
+    means nothing to the LLM, so we verify the file and give the model the
+    absolute host path plus size so it can open it with its file tools."""
+    import re as _re
+    def _repl(m):
+        alt, urlpath = m.group(1), m.group(2)
+        name = os.path.basename(urllib.parse.unquote(urlpath))
+        fpath = os.path.join(UPLOAD_DIR, name)
+        try:
+            size = os.path.getsize(fpath) if os.path.isfile(fpath) else None
+        except OSError:
+            size = None
+        if size is not None:
+            logger.info(f"📎 chat attachment resolved: {fpath} ({size} B)")
+            return f"[attached image: {alt} ({name}, {size} bytes) at {fpath} - manage/read this file to view the image content]"
+        logger.warning(f"📎 chat attachment missing: {fpath}")
+        return f"[attached image: {alt} ({name}) - uploaded file not found on server]"
+    return _re.sub(r'!\[([^\]]*)\]\((/uploads/[^)]+)\)', _repl, text)
+
 async def chat_handle(device_id, event, ws):
     payload = event.get('payload', {})
     text = payload.get('text', '').strip()
     voice_session = payload.get('voice_session')
+    _img_url = payload.get('image_url') or ''
+    _img_name = payload.get('image_name') or ''
+    if _img_url:
+        # Structured image field (thumbnail-only flow): wrap as markdown so
+        # _enrich_attachments resolves it uniformly.
+        text = (text + f" ![]({_img_url})").strip() if text else f"![]({_img_url})" 
     if not text:
         return
+    text = _enrich_attachments(text)
     logger.info(f"💬 chat from {device_id}: {text[:80]} (session={voice_session})")
     
     # MOCK_CHAT=1 → canned reply, never touches the real thinking model
@@ -733,7 +761,7 @@ async def http_upload_handler(request):
     if field is None or field.name != 'file':
         return web.json_response({"error": "file field required"}, status=400)
 
-    filename = field.filename or 'attachment.bin'
+    filename = os.path.basename(field.filename or 'attachment.bin') or 'attachment.bin'
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     filepath = os.path.join(UPLOAD_DIR, filename)
 
@@ -744,9 +772,9 @@ async def http_upload_handler(request):
                 break
             f.write(chunk)
 
-    # Return the URL the client can use to fetch the file
-    # Served via static route or direct path; for now return a relative path
-    url = f"/uploads/{filename}"
+    # Return URL-safe relative path for chat markdown (spaces -> %20 so the
+    # markdown image parser and Coil both resolve it).
+    url = f"/uploads/{urllib.parse.quote(filename)}"
     logger.info(f"📎 Upload saved: {filepath} -> {url}")
     return web.json_response({"status": "ok", "url": url, "filename": filename})
 

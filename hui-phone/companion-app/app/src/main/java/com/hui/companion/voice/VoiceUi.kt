@@ -214,7 +214,18 @@ object VoiceUi {
         transport: Transport
     ): Boolean {
         val trimmedText = text.trim()
-        if (trimmedText.isEmpty()) return false
+        // Peek first: takeAll() must only run after auth/connect checks
+        // pass, otherwise a blocked send consumes (loses) the images.
+        val pending = com.hui.companion.util.AttachmentState.peek()
+        if (trimmedText.isEmpty() && pending.isEmpty()) return false
+        if (com.hui.companion.util.AttachmentState.isUploading()) {
+            activity?.runOnUiThread {
+                android.widget.Toast.makeText(
+                    activity, "Still uploading image…", android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+            return false
+        }
 
         // Unauthenticated: block BEFORE the local echo. Inserting first
         // (old behavior) put the message in the window looking delivered
@@ -248,14 +259,36 @@ object VoiceUi {
         val session = currentVoiceSession ?: VoiceInput.generateSessionId()
         currentVoiceSession = session
 
-        // Add user message immediately to UI
+        // Checks passed — now consume the attachments.
+        val taken = com.hui.companion.util.AttachmentState.takeAll()
+        // Local echo renders through MessageViewHolder markdown: include
+        // every image, even alongside text (prompt-kit Image inside
+        // MessageContent), so the sent image is visible in history.
+        val imageMarkdown = taken.joinToString("\n") { "![${it.name}](${it.url})" }
+        val echoText = when {
+            trimmedText.isNotEmpty() && imageMarkdown.isNotEmpty() -> "$trimmedText\n\n$imageMarkdown"
+            trimmedText.isNotEmpty() -> trimmedText
+            else -> imageMarkdown
+        }
+        // Wire protocol carries one structured image (image_url); extra
+        // images ride as markdown in text, which the server's
+        // _enrich_attachments resolves uniformly.
+        val first = taken.firstOrNull()
+        val extraMarkdown = taken.drop(1).joinToString("\n") { "![${it.name}](${it.url})" }
+        val payloadText = when {
+            trimmedText.isNotEmpty() && extraMarkdown.isNotEmpty() -> "$trimmedText\n\n$extraMarkdown"
+            trimmedText.isNotEmpty() -> trimmedText
+            else -> extraMarkdown
+        }
+
+        // Add user message immediately to UI (markdown renders as an image)
         val scope = CoroutineScope(Dispatchers.IO)
         scope.launch {
-            messageRepository?.insertMessage("user", trimmedText, session)
+            messageRepository?.insertMessage("user", echoText, session)
         }
 
         // Send chat event (input is cleared by PromptInputLayout on true)
-        val payload = ChatEvent.ChatPayload(trimmedText, session)
+        val payload = ChatEvent.ChatPayload(payloadText, session, first?.url, first?.name)
         eventBus.tryPost(ChatEvent(payload))
         startThinking()
         setStatus("Sent…")

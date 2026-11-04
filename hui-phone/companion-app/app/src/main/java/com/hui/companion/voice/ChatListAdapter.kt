@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.hui.companion.R
+import com.hui.companion.ui.MarkdownRenderer
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -22,9 +23,11 @@ class ChatListAdapter(
     private val context: Context
 ) : ListAdapter<ChatMessage, ChatListAdapter.MessageViewHolder>(ChatMessageDiffCallback()) {
 
+    private val markdownRenderer = MarkdownRenderer()
+
     inner class MessageViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val bubbleContainer: LinearLayout = view.findViewById(R.id.bubbleContainer)
-        val messageText: TextView = view.findViewById(R.id.messageText)
+        val messageContent: LinearLayout = view.findViewById(R.id.messageContent)
         val timestampText: TextView = view.findViewById(R.id.timestampText)
     }
 
@@ -37,7 +40,10 @@ class ChatListAdapter(
         val message = getItem(position)
         val isUser = message.role == "user"
 
-        holder.messageText.text = message.text
+        // Render markdown blocks (incl. ![alt](url) images via ImageMessageView)
+        // instead of dumping raw text into a TextView.
+        holder.messageContent.removeAllViews()
+        markdownRenderer.render(message.text, holder.messageContent, context)
 
         // Style the bubble based on role
         val bubbleBg = if (isUser) R.drawable.bubble_user else R.drawable.bubble_assistant
@@ -60,10 +66,6 @@ class ChatListAdapter(
         lp.bottomMargin = (2 * dens).toInt()
         holder.bubbleContainer.layoutParams = lp
 
-        // Text color
-        holder.messageText.setTextColor(
-            ContextCompat.getColor(context, if (isUser) R.color.text_on_primary else R.color.text_primary)
-        )
         // Timestamp per-bubble (WCAG AA). User bubble #1D4ED8 takes
         // timestamp_user #DBEAFE (5.49:1); assistant #1E1E1E takes
         // timestamp_assistant #A1A1AA (6.50:1). No alpha — alpha was the bug.

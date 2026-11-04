@@ -9,5 +9,5 @@
     android:paddingTop="12dp"
     android:paddingBottom="6dp"
     android:text="Today"
-    android:textSize="11sp"
+    android:textSize="@dimen/pk_text_xs"
     android:textColor="@color/pk_muted_foreground" />

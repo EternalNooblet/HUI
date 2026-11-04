@@ -2,6 +2,7 @@ package com.hui.companion.ui
 
 import android.content.Context
 import android.text.method.LinkMovementMethod
+import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -261,6 +262,16 @@ class MarkdownRenderer {
         val blocks = parseMarkdownIntoBlocks(markdown)
         blocks.forEach { block ->
             val view = createViewForBlock(block, context)
+            // Programmatic views ship with NO LayoutParams; without an
+            // explicit width the text measures ~1 char wide and wraps
+            // vertically ("S o l i d"), and bubbles hug nothing.
+            // WRAP_CONTENT (not MATCH_PARENT): text still wraps at the
+            // bubble's max width, but short messages hug their content
+            // instead of stretching the bubble to max width.
+            view.layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
             container.addView(view)
         }
     }
@@ -374,7 +385,7 @@ class MarkdownRenderer {
     private fun createTextBlock(text: String, context: Context): TextView {
         val tv = TextView(context)
         tv.text = text
-        tv.textSize = context.resources.getDimension(R.dimen.pk_text_base)
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_PX, context.resources.getDimension(R.dimen.pk_text_base))
         tv.setTextColor(ContextCompat.getColor(context, R.color.pk_message_text))
         tv.movementMethod = LinkMovementMethod.getInstance()
         tv.setPadding(0, context.resources.getDimensionPixelSize(R.dimen.pk_space_1), 0, context.resources.getDimensionPixelSize(R.dimen.pk_space_1))
@@ -395,12 +406,12 @@ class MarkdownRenderer {
         tv.setTextColor(ContextCompat.getColor(context, R.color.pk_message_text))
         tv.typeface = android.graphics.Typeface.defaultFromStyle(android.graphics.Typeface.BOLD)
         tv.setPadding(0, context.resources.getDimensionPixelSize(R.dimen.pk_space_2), 0, context.resources.getDimensionPixelSize(R.dimen.pk_space_1))
-        tv.textSize = when (level) {
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_PX, when (level) {
             1 -> context.resources.getDimension(R.dimen.pk_text_xl)
             2 -> context.resources.getDimension(R.dimen.pk_text_lg)
             3 -> context.resources.getDimension(R.dimen.pk_text_base)
             else -> context.resources.getDimension(R.dimen.pk_text_base)
-        }
+        })
         return tv
     }
 
@@ -414,14 +425,15 @@ class MarkdownRenderer {
                 orientation = LinearLayout.HORIZONTAL
                 val bullet = TextView(context).apply {
                     text = if (ordered) "${index + 1}." else "•"
-                    textSize = context.resources.getDimension(R.dimen.pk_text_base)
+                    setTextSize(TypedValue.COMPLEX_UNIT_PX, context.resources.getDimension(R.dimen.pk_text_base))
                     setTextColor(ContextCompat.getColor(context, R.color.pk_message_text))
                     setPadding(0, 0, context.resources.getDimensionPixelSize(R.dimen.pk_space_2), 0)
                 }
                 val text = TextView(context).apply {
                     text = item
-                    textSize = context.resources.getDimension(R.dimen.pk_text_base)
+                    setTextSize(TypedValue.COMPLEX_UNIT_PX, context.resources.getDimension(R.dimen.pk_text_base))
                     setTextColor(ContextCompat.getColor(context, R.color.pk_message_text))
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 }
                 addView(bullet)
                 addView(text)
@@ -451,7 +463,7 @@ class MarkdownRenderer {
         }
         val text = TextView(context).apply {
             text = content
-            textSize = context.resources.getDimension(R.dimen.pk_text_base)
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, context.resources.getDimension(R.dimen.pk_text_base))
             setTextColor(ContextCompat.getColor(context, R.color.pk_muted_foreground))
             setPadding(context.resources.getDimensionPixelSize(R.dimen.pk_space_2), 0, 0, 0)
         }
@@ -466,7 +478,7 @@ class MarkdownRenderer {
         // TODO: Proper table layout
         val tv = TextView(context).apply {
             text = "Table: ${header.joinToString(", ")} | ${rows.size} rows"
-            textSize = context.resources.getDimension(R.dimen.pk_text_sm)
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, context.resources.getDimension(R.dimen.pk_text_sm))
             setTextColor(ContextCompat.getColor(context, R.color.pk_muted_foreground))
         }
         container.addView(tv)

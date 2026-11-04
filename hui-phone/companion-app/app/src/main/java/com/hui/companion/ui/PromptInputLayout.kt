@@ -26,8 +26,13 @@ class PromptInputLayout constructor(
 
     private var textarea: AutoSizingEditText? = null
     private var actionsContainer: LinearLayout? = null
+    private var previewsContainer: LinearLayout? = null
+    private var sendButton: View? = null
     private var onSendCallback: (String) -> Boolean = { true }
     private var onAttachmentClickCallback: () -> Unit = {}
+    private var onSendSuccessCallback: () -> Unit = {}
+    private var hasAttachmentProvider: () -> Boolean = { false }
+    private var isUploadingProvider: () -> Boolean = { false }
 
     constructor(context: Context) : this(context, null)
     constructor(context: Context, attrs: AttributeSet) : this(context, attrs, 0)
@@ -60,6 +65,8 @@ class PromptInputLayout constructor(
 
         textarea = view.findViewById(R.id.promptInputTextarea)
         actionsContainer = view.findViewById(R.id.promptInputActions)
+        previewsContainer = view.findViewById(R.id.promptInputPreviews)
+        sendButton = actionsContainer?.findViewById(R.id.promptInputSendBtn)
 
         // Overlay placeholder (30sp) visible only when textarea empty
         val placeholder = view.findViewById<View>(R.id.promptInputPlaceholder)
@@ -71,7 +78,7 @@ class PromptInputLayout constructor(
         textarea?.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) { updatePlaceholder() }
+            override fun afterTextChanged(s: android.text.Editable?) { updatePlaceholder(); refreshSendState() }
         })
 
         // Configure textarea
@@ -94,6 +101,30 @@ class PromptInputLayout constructor(
     fun setOnSendListener(callback: (String) -> Boolean) {
         onSendCallback = callback
     }
+
+    /** Fired after a send returns true (message accepted). Used to clear
+     *  attachment preview chips — AttachmentState.takeAll() only clears
+     *  the data, the chips are AttachmentPicker's views. */
+    fun setOnSendSuccessListener(callback: () -> Unit) {
+        onSendSuccessCallback = callback
+    }
+
+    /** PromptInput isLoading gating: send is enabled with text OR a ready
+     *  attachment, and blocked while an upload is in flight. */
+    fun setAttachmentStateProviders(hasAttachment: () -> Boolean, isUploading: () -> Boolean) {
+        hasAttachmentProvider = hasAttachment
+        isUploadingProvider = isUploading
+        refreshSendState()
+    }
+
+    fun refreshSendState() {
+        val hasText = !textarea?.text.isNullOrEmpty()
+        val canSend = (hasText || hasAttachmentProvider()) && !isUploadingProvider()
+        sendButton?.isEnabled = canSend
+        sendButton?.alpha = if (canSend) 1f else 0.5f
+    }
+
+    fun getPreviewContainer(): LinearLayout? = previewsContainer
 
     fun setOnAttachmentClickListener(callback: () -> Unit) {
         onAttachmentClickCallback = callback
@@ -130,14 +161,19 @@ class PromptInputLayout constructor(
 
     private fun sendMessage() {
         val text = textarea?.text.toString().trim()
-        if (text.isNotEmpty()) {
+        // Image-only send: text may be empty when an attachment is ready
+        // (prompt-kit FileUpload + PromptInput composition).
+        if (text.isNotEmpty() || hasAttachmentProvider()) {
+            if (isUploadingProvider()) return
             // Callback returns false when the send was blocked (not
-            // authenticated / not connected): keep the text in the input
-            // and the keyboard up so the user can retry, instead of
-            // silently losing the message.
+            // authenticated / not connected / still uploading): keep the text
+            // AND the attachment in the input so the user can retry, instead
+            // of silently losing the message.
             if (onSendCallback(text)) {
                 clearText()
+                onSendSuccessCallback()
                 hideKeyboard()
+                refreshSendState()
             }
         }
     }

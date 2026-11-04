@@ -235,7 +235,9 @@ data class ChatEvent(
 ) : Event("chat") {
     data class ChatPayload(
         @SerializedName("text") val text: String,
-        @SerializedName("voice_session") val voiceSession: String? = null
+        @SerializedName("voice_session") val voiceSession: String? = null,
+        @SerializedName("image_url") val imageUrl: String? = null,
+        @SerializedName("image_name") val imageName: String? = null
     )
 }
 

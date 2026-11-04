@@ -8,6 +8,7 @@ import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
 import android.text.style.RelativeSizeSpan
 import android.text.style.TypefaceSpan
+import android.util.TypedValue
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -45,14 +46,14 @@ class CodeBlockView(private val context: Context) {
         }
 
         val langBadge = TextView(context).apply {
-            textSize = context.resources.getDimension(R.dimen.pk_text_xs)
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, context.resources.getDimension(R.dimen.pk_text_xs))
             setTextColor(ContextCompat.getColor(context, R.color.pk_muted_foreground))
             setPadding(0, 0, 0, context.resources.getDimensionPixelSize(R.dimen.pk_space_1))
         }
         container.addView(langBadge)
 
         codeTextView = TextView(context).apply {
-            textSize = context.resources.getDimension(R.dimen.pk_text_code)
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, context.resources.getDimension(R.dimen.pk_text_code))
             setTextColor(ContextCompat.getColor(context, R.color.pk_code_foreground))
             typeface = android.graphics.Typeface.MONOSPACE
             setHorizontallyScrolling(true)
