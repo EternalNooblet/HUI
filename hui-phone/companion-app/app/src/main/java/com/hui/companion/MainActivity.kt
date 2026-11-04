@@ -319,7 +319,14 @@ class MainActivity : AppCompatActivity() {
                 RequestBody.create(null, cacheFile))
             .build()
 
-        val uploadUrl = BuildConfig.SERVER_URL.replace("wss://", "https://") + "/upload"
+        // Runtime URL (QR/manual), never a build-time default.
+        val baseUrl = Config.serverUrl.ifBlank { Config.loadServerUrl() }
+        if (baseUrl.isBlank()) {
+            Timber.w("Upload skipped: no server URL configured")
+            callback("")
+            return
+        }
+        val uploadUrl = baseUrl.replace("wss://", "https://").replace("ws://", "http://") + "/upload"
         val request = Request.Builder()
             .url(uploadUrl)
             .post(requestBody)

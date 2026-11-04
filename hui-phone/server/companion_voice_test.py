@@ -23,8 +23,9 @@ import wave
 
 import websockets
 
-WS_URL = 'wss://YOUR_LAN_HOST:8081/ws'
-HTTP_URL = 'https://YOUR_LAN_HOST:8081'
+import os
+WS_URL = os.environ.get('COMPANION_WS_URL', 'wss://127.0.0.1:8081/ws')
+HTTP_URL = os.environ.get('COMPANION_HTTP_URL', 'https://127.0.0.1:8081')
 SAMPLE_RATE = 16000
 
 def pcm_from_wav(path):
