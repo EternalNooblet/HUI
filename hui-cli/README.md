@@ -1,81 +1,50 @@
-> **Part of the [HUI project](../README.md)** — this is `hui-cli`, the Go terminal client.
+> **Part of the [HUI project](../README.md)** — the Go terminal client.
 
-HUI: Hermes Unofficial Interface
-=================================
-
-Demo
-----
+# HUI: Hermes Unofficial Interface
 
 ![HUI demo](assets/hui-demo.gif)
 
-A quick walkthrough of a full session: connect, typed prompt, streamed reply,
-/status, an inline approval answered by choice number, and a clean exit.
-
 A standalone terminal client for a remote Hermes gateway. One executable,
-nothing installed: it connects to a gateway running elsewhere and gives you
-a full-screen chat TUI — the conversation streams above, you edit your next
-message below. All session state lives on the gateway; the client never
-resends history.
+nothing to install: a full-screen chat TUI — replies stream above, you type
+below. Session state lives on the gateway; the client never resends history.
 
-Usage
------
+## Usage
 
-    hui -host <remote-host> -token <t>
-    hui -url ws://<remote-host>:<port>/api/ws?token=<t>
+```bash
+hui -host <remote-host> -token <blob>
+hui -url ws://<remote-host>:<port>/api/ws?token=<blob>
+```
 
-One of -host or -url is required.
+One of `-host` / `-url` is required. Optional: `-session <id>` resumes a
+session, `-debug <file>` writes every wire frame to a file.
 
-- -host <name>     backend host, optionally name:port (default port 9119).
-                   The app fills in protocol and path.
-- -url <url>       full WebSocket URL
-- -token <t>       signed access blob (see the Token section below)
-- -session <id>    resume an existing session instead of starting a new one
-- -debug <file>    write every wire frame to a file
+## Token
 
-Token
------
+Start the backend (`hermes serve --host 0.0.0.0`, with auth config set),
+then mint a signed token (~12h validity):
 
-Start the backend on the network:
+```bash
+./tools/mint_access_token.py > last-token.txt
+hui -host <lan-host-or-ip> -token "$(cat last-token.txt)"
+```
 
-    hermes serve --host 0.0.0.0
+Re-run the mint command when it expires.
 
-The backend must have its auth config (username + password + signing secret).
-The client token is a signed blob that mints in one command (~12 h validity):
+## Using it
 
-    ./tools/mint_access_token.py > last-token.txt
+- Type + Enter to send. Shift+Enter adds a newline to the draft.
+- Up/Down recalls previous messages. Ctrl+C quits.
+- Approval/clarify/sudo prompts appear inline — answer them where you sit.
+- `/new` fresh session, `/status` build+gateway info, `/help` commands, `/exit` quit.
 
-Then connect:
+## Build
 
-    hui -host <lan-host-or-ip> -token "$(cat last-token.txt)"
+```bash
+./build.sh                            # -> builds/hui
+GOOS=windows GOARCH=amd64 ./build.sh  # -> builds/hui.exe
+```
 
-When it expires, rerun the mint command. That signed blob is the only token
-HUI ever needs.
+Windows: run `build.bat`. Needs a Go toolchain (PATH, then `~/.local/opt/go`).
+One statically-linked binary, no cgo.
 
-Using the app
--------------
-
-Type a message and press Enter to send it. After every reply a 𖦏 prompt
-appears on its own line.
-
-- Shift+Enter (or Alt+Enter) adds a newline to your draft without sending.
-- Up/Down recall previously submitted messages; the selected one becomes
-  your draft, so you can edit and resubmit it.
-- Editing: Ctrl+A/E go to line start/end, Ctrl+U clear, Ctrl+W delete word.
-- Ctrl+C quits.
-- Approval, clarify and sudo prompts from the gateway appear inline; answer
-  them where you sit.
-- Commands: /new starts a fresh session, /status shows build, gateway,
-  session and model info, /help lists commands, /exit quits. Any other
-  /text is sent to the agent as-is.
-
-Build
------
-
-    ./build.sh                            # -> builds/hui
-    GOOS=windows GOARCH=amd64 ./build.sh  # -> builds/hui.exe
-
-Windows 11: run build.bat in a terminal. Needs a Go toolchain (found in
-PATH, then ~/.local/opt/go); produces one statically-linked binary.
-
-Engineering reference: docs/SPEC.md — wire protocol, terminal behavior, and the
-full verification record.
+Engineering reference: `docs/SPEC.md` (wire protocol + verification record).

@@ -1,26 +1,19 @@
-tools/demo — regenerate assets/hui-demo.mp4
-==========================================
+# tools/demo — regenerate the demo video
 
-Runs the demo pipeline: narrate.sh synthesizes the voiceover segments,
-framegen.py paces the session timeline into PNG frames, assemble.sh concatenates
-the audio and encodes ../../assets/hui-demo.mp4.
+Regenerates `assets/hui-demo.mp4`: narration (TTS) → paced PNG frames → encoded video.
 
-Requirements
-- system python3 with Pillow + fonttools
-- DejaVu Sans Mono installed (/usr/share/fonts/TTF/DejaVuSansMono.ttf)
-- NotoSansBamum-Regular.ttf (this dir) for the 𖦏 prompt glyph — U+1698F is
-  a Bamum letter; no DejaVu/Noto Mono font carries it. Downloaded from
-  googlefonts/noto-fonts, SIL OFL.
-- a running audio.cpp Ming-TTS server at 127.0.0.1:8188 for narrate.sh
-  (each segment is one POST of {model, input} only — default voice, no
-  options).
-- ffmpeg
+## Needs
 
-Run, from this directory:
-    bash narrate.sh      # 8 narration wavs + durations.json
-    python3 framegen.py  # 15fps PNG frames in frames/, paced by durations.json
-    bash assemble.sh     # concat audio (+0.6s pad per segment) and encode
-                         # ../../assets/hui-demo.mp4
+- python3 with Pillow + fonttools
+- DejaVu Sans Mono + NotoSansBamum (for the prompt glyph), ffmpeg
+- A Ming-TTS server at `127.0.0.1:8188` (audio.cpp)
 
-durations.json, seg*.wav, narration.wav, silence.wav and frames/ are
-generated intermediates and gitignored.
+## Run (from this directory)
+
+```bash
+bash narrate.sh      # voiceover wavs + durations.json
+python3 framegen.py  # PNG frames, paced by durations.json
+bash assemble.sh     # concat audio, encode ../../assets/hui-demo.mp4
+```
+
+Generated intermediates (`frames/`, `*.wav`, `durations.json`) are gitignored.
