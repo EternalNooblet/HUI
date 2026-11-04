@@ -150,6 +150,25 @@ jobs:
           ls -lh app/build/outputs/apk/release/*.apk app/build/outputs/bundle/release/*.aab
           "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
 
+      - name: Package server bundle
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          python3 - <<'PY'
+          import pathlib, zipfile
+          src = pathlib.Path("hui-phone/server")
+          include = sorted(
+              [p for p in src.glob("*.py")] +
+              [src / n for n in ("install.sh", "requirements.txt", "AI_SETUP.md") if (src / n).exists()]
+          )
+          out = pathlib.Path("hui-phone-server.zip")
+          with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+              for p in include:
+                  z.write(p, f"hui-phone-server/{p.name}")
+          print(f"bundled {len(include)} files -> {out} ({out.stat().st_size} bytes)")
+          for p in include: print(" ", p)
+          PY
+          ls -lh hui-phone-server.zip
+
       - name: Publish Android assets
         if: github.ref_type == 'tag'
         env:
@@ -159,10 +178,11 @@ jobs:
           NAME="${TAG#refs/tags/}"
           cp app/build/outputs/apk/release/app-release.apk "hui-phone-${NAME}.apk"
           cp app/build/outputs/bundle/release/app-release.aab "hui-phone-${NAME}.aab"
-          sha256sum "hui-phone-${NAME}.apk" "hui-phone-${NAME}.aab" > SHA256SUMS.txt
+          cp "$GITHUB_WORKSPACE/hui-phone-server.zip" "hui-phone-server-${NAME}.zip"
+          sha256sum "hui-phone-${NAME}.apk" "hui-phone-${NAME}.aab" "hui-phone-server-${NAME}.zip" > SHA256SUMS.txt
           cat SHA256SUMS.txt
-          gh release upload "$NAME" "hui-phone-${NAME}.apk" "hui-phone-${NAME}.aab" SHA256SUMS.txt --clobber
-          echo "Uploaded hui-phone-${NAME}.apk/.aab to release $NAME"
+          gh release upload "$NAME" "hui-phone-${NAME}.apk" "hui-phone-${NAME}.aab" "hui-phone-server-${NAME}.zip" SHA256SUMS.txt --clobber
+          echo "Uploaded hui-phone-${NAME}.apk/.aab + server bundle to release $NAME"
 
       - name: Note manual run
         if: github.ref_type != 'tag'
