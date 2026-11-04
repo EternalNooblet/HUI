@@ -259,10 +259,21 @@ def _reexec_with_qrcode_python() -> None:
 
 
 def print_ascii_qr(qrcode, payload_str: str) -> None:
-    # EC level L = fewest modules for the payload, so each module renders
-    # largest and phone cameras resolve it most easily.
-    # border=4 is the QR spec minimum quiet zone — scanners need it to
-    # locate the code reliably.
+    # Preferred: qrterminal (ANSI truecolor square pixels — no font/glyph
+    # dependence, always renders square). Falls back to half-block ASCII.
+    import shutil
+    import subprocess
+    exe = shutil.which("qrterminal") or os.path.expanduser("~/bin/qrterminal")
+    if os.path.exists(exe):
+        try:
+            # -q 4: QR spec minimum quiet zone. -l L: largest modules.
+            r = subprocess.run([exe, "-q", "4", "-l", "L", payload_str],
+                               capture_output=True, text=True, timeout=10)
+            if r.returncode == 0 and "47m" in r.stdout:
+                sys.stdout.write(r.stdout)
+                return
+        except Exception:
+            pass
     qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_L,
                        box_size=1, border=4)
     qr.add_data(payload_str)
