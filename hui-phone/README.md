@@ -19,18 +19,12 @@ https://github.com/user-attachments/assets/fbce7eac-1f51-4752-bd6c-aa67fb4100d8
 
 ## Setup
 
-**Start with [`server/AI_SETUP.md`](server/AI_SETUP.md)** — it has the full
-walkthrough with checks for every step (backend, auth, QR pairing).
-That's the canonical guide; the summary below is just the outline.
+1. Install the APK from the latest Release. Grant camera + mic.
+2. `hermes serve --host 0.0.0.0 --port 9119` (or let `hui-qr` start it).
+3. Unzip the QR tooling, `./install.sh`, then `hui-qr`.
+4. Scan the QR in the app (Settings → Authentication).
 
-1. Download the APK from the latest GitHub Release. (The release also
-   ships a small QR-tooling zip — `server/` — for step 3.)
-2. Start the backend: `hermes serve --host 0.0.0.0 --port 9119` (or let
-   `hui-qr` start it for you).
-3. Unzip the QR tooling and run `./install.sh` (deps + `hui-qr` launcher),
-   then run `hui-qr` — it prints the QR code.
-4. Install the APK on your phone, grant camera + mic when it asks.
-5. Scan the QR in the app (Settings → Authentication).
+Full version with checks: [`server/AI_SETUP.md`](server/AI_SETUP.md).
 
 ## Run it
 
