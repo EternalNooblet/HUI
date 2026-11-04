@@ -16,13 +16,13 @@ That's the canonical guide; the summary below is just the outline.
 2. Unzip the server zip, run `./install.sh`, then start the server
    (`companion_wss_server.py`).
 3. Install the APK on your phone, grant camera + mic when it asks.
-4. On the server machine run `./hui-qr` — this prints the QR code.
+4. On the server machine run `hui-qr` — this prints the QR code.
 5. Scan the QR in the app (Settings → Authentication).
 
 ## Run it
 
 ```bash
-cd hui-phone/server && ./hui-qr   # starts serve if needed, prints QR — scan in app
+hui-qr   # starts serve if needed, prints QR — scan in app
 ```
 
 Building the app from source instead of downloading the APK:
