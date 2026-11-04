@@ -27,17 +27,6 @@ cd hui-phone/server && python3 companion_wss_server.py
 cd hui-phone/companion-app && ./gradlew assembleRelease
 ```
 
-## Releases
-
-One `v*` tag builds everything and publishes a single GitHub Release:
-
-```bash
-git tag v0.1.11 && git push origin v0.1.11
-```
-
-That produces the Go binaries (Linux/macOS/Windows) plus the signed
-Android APK and AAB. Details in [hui-phone/README.md](hui-phone/README.md).
-
 ## License
 
 GPL-3.0 — see `LICENSE` at the repo root.
