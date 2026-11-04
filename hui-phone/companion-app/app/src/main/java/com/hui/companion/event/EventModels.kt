@@ -120,6 +120,7 @@ sealed class Command(
                 "launch_app" -> LaunchAppCommand(requestId, payload)
                 "config" -> ConfigCommand(requestId, payload)
                 "voice_state" -> VoiceStateCommand(requestId, payload)
+                "voice_transcript" -> VoiceTranscriptCommand(requestId, payload)
                 "chat_reply" -> ChatReplyCommand(requestId, payload)
                 else -> UnknownCommand(requestId, commandType, payload)
             }
@@ -152,6 +153,13 @@ data class VoiceStateCommand(
     override val payload: CommandPayload
 ) : Command(command = "voice_state", requestId = requestId, payload = payload)
 
+// Server -> phone: the user's STT transcript for a voice turn. The phone
+// inserts it as the user bubble before the final speak. Not a new session.
+data class VoiceTranscriptCommand(
+    @SerializedName("request_id") override val requestId: String,
+    override val payload: CommandPayload
+) : Command(command = "voice_transcript", requestId = requestId, payload = payload)
+
 // Chat reply command from server (text bubble)
 data class ChatReplyCommand(
     @SerializedName("request_id") override val requestId: String,
@@ -166,6 +174,7 @@ data class UnknownCommand(
 
 data class CommandPayload(
     @SerializedName("text") val text: String? = null,
+    @SerializedName("state") val state: String? = null,
     @SerializedName("voice") val voice: String? = null,
     @SerializedName("pitch") val pitch: Float? = null,
     @SerializedName("priority") val priority: String? = null,

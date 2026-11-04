@@ -1,40 +1,55 @@
 package com.hui.companion.voice
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.util.Base64
-import com.hui.companion.util.Config
-import com.hui.companion.event.EventBus
+import androidx.core.content.ContextCompat
 import com.hui.companion.event.AudioEvent
-import com.hui.companion.event.VoiceStartEvent
-import com.hui.companion.event.VoiceSendEvent
+import com.hui.companion.event.EventBus
 import com.hui.companion.event.VoiceCancelEvent
+import com.hui.companion.event.VoiceSendEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.util.UUID
 
+/**
+ * VoiceInput — one-shot PCM capture for a single voice turn.
+ *
+ * Lifetime: construct on mic tap, [start], then [cancel] (user stop,
+ * auto-cancel, hard cap, or error). It owns its [AudioRecord] and its
+ * single capture Job; [cancel] is idempotent and safe from any thread.
+ *
+ * Terminal conditions all fire the supplied callbacks exactly once:
+ * [onAutoCancel] (3s sub-threshold RMS), [onHardCap] (60s),
+ * [onError] (permission / AudioRecord / read failure). The caller
+ * (VoiceUi) is responsible for posting no further sends after a
+ * terminal callback — the recorder is already stopped by then.
+ */
 class VoiceInput(
-    private val context: android.content.Context,
+    private val context: Context,
     private val eventBus: EventBus,
     private val voiceSession: String,
-    private val onRms: ((Float) -> Unit)? = null
+    private val onAutoCancel: () -> Unit = {},
+    private val onHardCap: () -> Unit = {},
+    private val onError: (String) -> Unit = {}
 ) {
     private var job: Job? = null
-    private var audioRecord: AudioRecord? = null
+    @Volatile private var audioRecord: AudioRecord? = null
+    @Volatile private var cancelled = false
     private var sequence = 0L
     private var startTimeMs = 0L
-    private var lastAudioTimeMs = 0L
-    private var isCancelled = false
     private var silentStartMs: Long? = null
+    private var consecutiveReadErrors = 0
 
-    private val audioExecutor = CoroutineScope(Dispatchers.IO)
-    private val chunkQueue = Channel<Array<Byte>>(Channel.UNLIMITED)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val CHUNK_DURATION_MS = 100
     private val SAMPLE_RATE = 16000
@@ -44,100 +59,161 @@ class VoiceInput(
     private val AUTO_CANCEL_THRESHOLD_DB = -65.0f
     private val AUTO_CANCEL_DURATION_MS = 3000
     private val MAX_DURATION_MS = 60000
+    private val MAX_CONSECUTIVE_READ_ERRORS = 10
     private val SAMPLES_PER_CHUNK = SAMPLE_RATE * CHUNK_DURATION_MS / 1000
 
     fun start() {
         if (job != null) return
-        isCancelled = false
+        cancelled = false
         sequence = 0
         startTimeMs = System.currentTimeMillis()
-        lastAudioTimeMs = startTimeMs
         silentStartMs = null
+        consecutiveReadErrors = 0
 
-        val bufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, ENCODING)
-            .coerceAtLeast(SAMPLES_PER_CHUNK * 2)
-
-        audioRecord = AudioRecord(
-            MediaRecorder.AudioSource.VOICE_COMMUNICATION,
-            SAMPLE_RATE,
-            CHANNEL_CONFIG,
-            ENCODING,
-            bufferSize
-        ).also { it.startRecording() }
-
-        job = audioExecutor.launch {
-            captureLoop()
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            Timber.w("VoiceInput: RECORD_AUDIO not granted")
+            onError("Microphone permission missing")
+            return
         }
 
-        audioExecutor.launch {
-            sendLoop()
+        val minBuffer = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, ENCODING)
+        if (minBuffer <= 0) {
+            Timber.e("VoiceInput: getMinBufferSize failed: $minBuffer")
+            onError("Microphone unavailable")
+            return
         }
+        val bufferSize = minBuffer.coerceAtLeast(SAMPLES_PER_CHUNK * 2)
 
+        val recorder = try {
+            AudioRecord(
+                MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+                SAMPLE_RATE,
+                CHANNEL_CONFIG,
+                ENCODING,
+                bufferSize
+            )
+        } catch (e: Exception) {
+            Timber.e(e, "VoiceInput: AudioRecord construction failed")
+            onError("Microphone unavailable")
+            return
+        }
+        if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+            Timber.e("VoiceInput: AudioRecord not initialized")
+            try { recorder.release() } catch (_: Exception) {}
+            onError("Microphone unavailable")
+            return
+        }
+        try {
+            recorder.startRecording()
+        } catch (e: Exception) {
+            Timber.e(e, "VoiceInput: startRecording failed")
+            try { recorder.release() } catch (_: Exception) {}
+            onError("Microphone unavailable")
+            return
+        }
+        audioRecord = recorder
+        job = scope.launch { captureLoop() }
         Timber.i("VoiceInput started: session=$voiceSession")
     }
 
     fun cancel() {
-        isCancelled = true
+        if (cancelled) return
+        cancelled = true
         job?.cancel()
-        audioRecord?.stop()
-        audioRecord?.release()
-        audioRecord = null
-        chunkQueue.close()
+        job = null
+        stopAndRelease()
         Timber.i("VoiceInput cancelled: session=$voiceSession")
+    }
+
+    private fun stopAndRelease() {
+        val recorder = audioRecord
+        audioRecord = null
+        if (recorder == null) return
+        try {
+            if (recorder.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                recorder.stop()
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "VoiceInput: stop() ignored")
+        }
+        try {
+            recorder.release()
+        } catch (e: Exception) {
+            Timber.w(e, "VoiceInput: release() ignored")
+        }
     }
 
     private suspend fun captureLoop() {
         val buffer = ShortArray(SAMPLES_PER_CHUNK)
-        while (!isCancelled && audioRecord != null) {
-            val read = audioRecord!!.read(buffer, 0, SAMPLES_PER_CHUNK)
-            if (read > 0) {
-                val now = System.currentTimeMillis()
-                lastAudioTimeMs = now
-
-                val rms = calculateRms(buffer, read)
-                val rmsDb = 20 * Math.log10((rms + 1e-10)).toFloat()
-
-                // Feed RMS to UI for waveform (normalized 0..1)
-                onRms?.invoke(rms)
-
-                if (rmsDb < AUTO_CANCEL_THRESHOLD_DB) {
-                    if (silentStartMs == null) silentStartMs = now
-                    else if (now - silentStartMs!! >= AUTO_CANCEL_DURATION_MS) {
-                        Timber.i("Auto-cancel: sub-threshold RMS (%.1f dB) for ${AUTO_CANCEL_DURATION_MS}ms", rmsDb)
-                        postVoiceCancel()
-                        return
-                    }
-                } else {
-                    silentStartMs = null
-                }
-
-                if (now - startTimeMs >= MAX_DURATION_MS) {
-                    Timber.i("Hard cap reached: ${MAX_DURATION_MS}ms")
-                    postVoiceSend()
+        while (!cancelled && audioRecord != null) {
+            val recorder = audioRecord ?: break
+            val read = try {
+                recorder.read(buffer, 0, SAMPLES_PER_CHUNK)
+            } catch (e: Exception) {
+                Timber.e(e, "VoiceInput: read threw")
+                -1
+            }
+            if (cancelled) break
+            if (read <= 0) {
+                consecutiveReadErrors++
+                Timber.w("VoiceInput: read=$read (errors=$consecutiveReadErrors)")
+                if (consecutiveReadErrors >= MAX_CONSECUTIVE_READ_ERRORS) {
+                    onError("Microphone read failed")
+                    cleanupAfterTerminal()
                     return
                 }
-
-                val chunk = ShortArray(read).apply { System.arraycopy(buffer, 0, this, 0, read) }
-                val b64 = Base64.encodeToString(shortArrayToBytes(chunk), Base64.NO_WRAP)
-                val payload = AudioEvent.AudioPayload(
-                    format = "pcm16",
-                    sampleRate = SAMPLE_RATE,
-                    channels = 1,
-                    durationMs = CHUNK_DURATION_MS,
-                    dataBase64 = b64,
-                    sequence = sequence++,
-                    voiceSession = voiceSession
-                )
-                eventBus.tryPost(AudioEvent(payload))
+                continue
             }
-            delay(CHUNK_DURATION_MS.toLong())
+            consecutiveReadErrors = 0
+            val now = System.currentTimeMillis()
+
+            val rms = calculateRms(buffer, read)
+            val rmsDb = 20 * Math.log10((rms + 1e-10)).toFloat()
+
+            if (rmsDb < AUTO_CANCEL_THRESHOLD_DB) {
+                if (silentStartMs == null) silentStartMs = now
+                else if (now - silentStartMs!! >= AUTO_CANCEL_DURATION_MS) {
+                    Timber.i("Auto-cancel: sub-threshold RMS (%.1f dB) for ${AUTO_CANCEL_DURATION_MS}ms", rmsDb)
+                    postVoiceCancel()
+                    cleanupAfterTerminal()
+                    onAutoCancel()
+                    return
+                }
+            } else {
+                silentStartMs = null
+            }
+
+            if (now - startTimeMs >= MAX_DURATION_MS) {
+                Timber.i("Hard cap reached: ${MAX_DURATION_MS}ms")
+                postVoiceSend()
+                cleanupAfterTerminal()
+                onHardCap()
+                return
+            }
+
+            val chunk = ShortArray(read).apply { System.arraycopy(buffer, 0, this, 0, read) }
+            val b64 = Base64.encodeToString(shortArrayToBytes(chunk), Base64.NO_WRAP)
+            val payload = AudioEvent.AudioPayload(
+                format = "pcm16",
+                sampleRate = SAMPLE_RATE,
+                channels = 1,
+                durationMs = CHUNK_DURATION_MS,
+                dataBase64 = b64,
+                sequence = sequence++,
+                voiceSession = voiceSession
+            )
+            eventBus.tryPost(AudioEvent(payload))
+            // read() is blocking (~100ms); no extra delay here or the
+            // cadence doubles and wall-clock drift breaks gap math.
         }
     }
 
-    private suspend fun sendLoop() {
-        for (chunk in chunkQueue) {
-            // Chunks are sent via eventBus in captureLoop; this loop exists for backpressure if needed
-        }
+    private fun cleanupAfterTerminal() {
+        cancelled = true
+        job = null
+        stopAndRelease()
     }
 
     private fun calculateRms(buffer: ShortArray, len: Int): Float {

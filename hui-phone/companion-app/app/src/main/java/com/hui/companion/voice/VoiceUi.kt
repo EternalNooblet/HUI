@@ -1,33 +1,33 @@
 package com.hui.companion.voice
 
-import android.app.Activity
 import android.os.Handler
 import android.os.Looper
-import android.view.View
 import androidx.appcompat.app.AppCompatActivity
-import com.hui.companion.R
-import com.hui.companion.db.MessageEntity
-import com.hui.companion.db.MessageRepositoryProvider
-import com.hui.companion.event.EventBus
-import com.hui.companion.event.VoiceCancelEvent
-import com.hui.companion.event.VoiceSendEvent
-import com.hui.companion.event.VoiceStartEvent
-import com.hui.companion.event.ChatEvent
 import com.hui.companion.db.ChatSessionSummary
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.Flow
+import com.hui.companion.db.MessageRepositoryProvider
+import com.hui.companion.event.ChatEvent
+import com.hui.companion.event.EventBus
+import com.hui.companion.event.VoiceStartEvent
 import com.hui.companion.transport.CommandExecutor
 import com.hui.companion.transport.Transport
 import com.hui.companion.ui.PromptInputLayout
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 /**
- * VoiceUi — chat-mode voice input.
+ * VoiceUi — one session, one window, all modalities.
  *
- * Voice is an input method inside the chat flow, not a separate mode.
- * Tap the mic button → record → transcript lands in the text input → user edits/sends.
+ * Voice is a turn origin inside the shared chat session, not a mode:
+ * tap mic -> stream PCM -> server STT -> bridge -> `speak` reply.
+ * The reply always lands as an assistant bubble; native TTS read-out
+ * happens only for voice-originated turns (CommandExecutor drives
+ * that). Text/image turns arrive as `chat_reply` and never speak.
+ *
+ * Server echo of the user's own words arrives as `voice_transcript`
+ * and lands as the user bubble before the reply.
  */
 object VoiceUi {
 
@@ -35,11 +35,14 @@ object VoiceUi {
     private var chatRecyclerView: com.hui.companion.ui.ChatRecyclerView? = null
     private var promptInputLayout: PromptInputLayout? = null
     private var thinkingBar: com.hui.companion.ui.ThinkingBarView? = null
-    private val thinkingHandler = Handler(Looper.getMainLooper())
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val thinkingTimeout = Runnable { thinkingBar?.stop() }
+    private val recordingTimeout = Runnable { onRecordingAbandoned() }
     // Server reply timeout is 180s; hide the indicator at 90s so a lost
     // reply doesn't leave it spinning forever (a late reply still lands).
     private val THINKING_TIMEOUT_MS = 90_000L
+    // 60s hard cap + 2s grace: the bar must not outlive a dead recorder.
+    private val RECORDING_TIMEOUT_MS = 62_000L
 
     private var isListening = false
     private var loadJob: Job? = null
@@ -48,7 +51,8 @@ object VoiceUi {
     private var chatAdapter: ChatListAdapter? = null
     private var messageRepository: com.hui.companion.db.MessageRepository? = null
 
-    /** True while a voice recording session is active (mic button toggled on). */
+    /** True while the mic is on (recording). Reply routing must NEVER read
+     *  this — origin is carried by the command type (speak vs chat_reply). */
     var voiceRecording = false
         private set
 
@@ -149,21 +153,53 @@ object VoiceUi {
     fun observeSessions(): Flow<List<ChatSessionSummary>> =
         messageRepository?.observeSessions() ?: kotlinx.coroutines.flow.flowOf(emptyList())
 
-    /** Toggle voice recording on/off. When stopped, transcript is inserted into the text input. */
+    /** Tap mic: start recording; tap again: stop and send. */
     fun toggleVoiceRecording(eventBus: EventBus, transport: Transport) {
         if (voiceRecording) {
-            stopVoiceRecording(eventBus, transport)
+            stopVoiceRecording()
         } else {
             startVoiceRecording(eventBus, transport)
         }
     }
 
     private fun startVoiceRecording(eventBus: EventBus, transport: Transport) {
-        val sessionId = VoiceInput.generateSessionId()
-        currentVoiceSession = sessionId
-        voiceInput = VoiceInput(activity!!, eventBus, sessionId) { rms ->
-            // RMS callback retained for future waveform overlay; no UI element currently wired
+        val act = activity ?: return
+        // Same gate as sendChatMessage: starting while unreachable burns
+        // the mic and drops every chunk locally with no feedback.
+        if (!transport.isAuthenticated()) {
+            act.runOnUiThread {
+                android.widget.Toast.makeText(
+                    act,
+                    "Not authenticated — voice not sent. Scan a QR in Settings to reconnect.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
+            return
         }
+        if (!transport.isConnected) {
+            transport.connect()
+            act.runOnUiThread {
+                android.widget.Toast.makeText(
+                    act,
+                    "Connecting… voice not sent yet. Try again in a moment.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
+            return
+        }
+
+        // Shared-session rule: reuse the visible session id. Never
+        // generate here — a voice turn belongs in the same window and
+        // Room history as the text turns around it.
+        val sessionId = currentVoiceSession ?: VoiceInput.generateSessionId()
+        currentVoiceSession = sessionId
+
+        voiceInput = VoiceInput(
+            act, eventBus, sessionId,
+            onAutoCancel = { mainHandler.post { onVoiceTerminal(cancelled = true) } },
+            onHardCap = { mainHandler.post { onVoiceTerminal(cancelled = false, hardCapped = true) } },
+            onError = { message -> mainHandler.post { onVoiceError(message) } }
+        )
         voiceInput?.start()
 
         val payload = VoiceStartEvent.VoiceStartPayload(sessionId)
@@ -171,13 +207,13 @@ object VoiceUi {
 
         voiceRecording = true
         isListening = true
-        activity?.runOnUiThread {
+        act.runOnUiThread {
             promptInputLayout?.getVoiceButton()?.isPressed = true
         }
-        setStatus("Listening…")
+        showListening()
     }
 
-    private fun stopVoiceRecording(eventBus: EventBus, transport: Transport) {
+    private fun stopVoiceRecording() {
         voiceInput?.postVoiceSend()
         voiceInput?.cancel()
         voiceInput = null
@@ -187,46 +223,102 @@ object VoiceUi {
         activity?.runOnUiThread {
             promptInputLayout?.getVoiceButton()?.isPressed = false
         }
-        setStatus("Transcribing…")
+        showTranscribing()
     }
 
-    /** Called by CommandExecutor when a `speak` command arrives during voice recording.
-     * Inserts the transcript into the text input instead of speaking it. */
-    fun handleVoiceTranscript(text: String, voiceSession: String) {
+    // VoiceInput terminal callbacks. Each must leave the UI in a
+    // non-listening state exactly once, whatever order they race in.
+    private fun onVoiceTerminal(cancelled: Boolean, hardCapped: Boolean = false) {
+        if (!voiceRecording && voiceInput == null) return
+        voiceInput = null
         voiceRecording = false
         isListening = false
         activity?.runOnUiThread {
             promptInputLayout?.getVoiceButton()?.isPressed = false
-            val current = promptInputLayout?.getText() ?: ""
-            val newText = if (current.isNotEmpty()) "$current\n$text" else text
-            promptInputLayout?.setText(newText)
         }
-        setStatus("Transcript inserted")
+        if (cancelled) {
+            stopThinking()
+            toast("No voice detected — recording cancelled")
+        } else if (hardCapped) {
+            showTranscribing()
+        }
+    }
+
+    private fun onVoiceError(message: String) {
+        voiceInput = null
+        voiceRecording = false
+        isListening = false
+        activity?.runOnUiThread {
+            promptInputLayout?.getVoiceButton()?.isPressed = false
+        }
+        stopThinking()
+        toast(message)
+        boop()
+    }
+
+    private fun onRecordingAbandoned() {
+        // The 62s handler: if VoiceInput died without a callback, don't
+        // leave the bar spinning on a dead recorder.
+        if (voiceRecording) {
+            voiceInput?.cancel()
+            onVoiceTerminal(cancelled = false)
+        }
+    }
+
+    /**
+     * Server -> phone `voice_transcript`: the user's own words, echoed
+     * back before the reply. Inserts the user bubble in the shared
+     * session. Never touches the text input.
+     */
+    fun handleVoiceTranscript(text: String, voiceSession: String) {
+        if (text.isBlank()) return
+        val session = voiceSession.ifEmpty { currentVoiceSession ?: return }
+        val scope = CoroutineScope(Dispatchers.IO)
+        scope.launch {
+            messageRepository?.insertMessage("user", text, session)
+        }
+        // STT done — the bridge is now thinking. Flip the bar so it
+        // doesn't sit on "Transcribing…" through the Hermes turn.
+        showThinking()
     }
 
     fun handleVoiceState(state: String, voiceSession: String) {
         when (state) {
-            "received" -> setStatus("Received, processing…")
-            "transcribing" -> setStatus("Transcribing…")
+            "received" -> showTranscribing()
+            "transcribing" -> showTranscribing()
             "failed" -> {
-                setStatus("Failed — tap mic to retry")
                 voiceRecording = false
                 isListening = false
+                voiceInput = null
                 activity?.runOnUiThread {
                     promptInputLayout?.getVoiceButton()?.isPressed = false
                 }
+                stopThinking()
+                toast("Voice failed — tap mic to retry")
+                boop()
             }
             else -> {}
         }
     }
 
+    /** Voice-originated assistant reply: bubble + native TTS. The
+     *  CommandExecutor path already shows text; this only adds the
+     *  bubble insert (shared with chat replies) — TTS stays in
+     *  CommandExecutor via Config voice/pitch. */
+    fun handleVoiceReply(text: String, voiceSession: String) {
+        handleAssistantBubble(text, voiceSession)
+    }
+
     fun handleChatReply(text: String, voiceSession: String) {
+        handleAssistantBubble(text, voiceSession)
+    }
+
+    private fun handleAssistantBubble(text: String, voiceSession: String) {
         stopThinking()
         val scope = CoroutineScope(Dispatchers.IO)
         scope.launch {
             messageRepository?.insertMessage("assistant", text, voiceSession)
         }
-        setStatus("Reply received")
     }
 
     private fun sendChatMessage(
@@ -312,22 +404,58 @@ object VoiceUi {
         val payload = ChatEvent.ChatPayload(payloadText, session, first?.url, first?.name)
         eventBus.tryPost(ChatEvent(payload))
         startThinking()
-        setStatus("Sent…")
         return true
     }
 
-    private fun startThinking() {
-        thinkingHandler.removeCallbacks(thinkingTimeout)
+    private fun showListening() {
+        clearBars()
+        thinkingBar?.setText("Listening…")
         thinkingBar?.start()
-        thinkingHandler.postDelayed(thinkingTimeout, THINKING_TIMEOUT_MS)
+        mainHandler.postDelayed(recordingTimeout, RECORDING_TIMEOUT_MS)
+    }
+
+    private fun showTranscribing() {
+        clearBars()
+        thinkingBar?.setText("Transcribing…")
+        thinkingBar?.start()
+        mainHandler.postDelayed(thinkingTimeout, THINKING_TIMEOUT_MS)
+    }
+
+    private fun showThinking() {
+        clearBars()
+        thinkingBar?.setText("Thinking…")
+        thinkingBar?.start()
+        mainHandler.postDelayed(thinkingTimeout, THINKING_TIMEOUT_MS)
+    }
+
+    private fun startThinking() {
+        showThinking()
     }
 
     private fun stopThinking() {
-        thinkingHandler.removeCallbacks(thinkingTimeout)
+        clearBars()
         thinkingBar?.stop()
     }
 
-    private fun setStatus(text: String) {
+    private fun clearBars() {
+        mainHandler.removeCallbacks(thinkingTimeout)
+        mainHandler.removeCallbacks(recordingTimeout)
+    }
+
+    private fun toast(message: String) {
+        activity?.runOnUiThread {
+            android.widget.Toast.makeText(activity, message, android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun boop() {
+        // Short ToneGenerator beep — no asset needed, same affordance as
+        // the text-chat error path.
+        runCatching {
+            val tg = android.media.ToneGenerator(android.media.AudioManager.STREAM_MUSIC, 50)
+            tg.startTone(android.media.ToneGenerator.TONE_CDMA_ANSWER, 150)
+            tg.release()
+        }
     }
 
     private fun scrollToBottom() {
