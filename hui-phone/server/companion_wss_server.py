@@ -52,7 +52,7 @@ GAP_FAIL_MS = 30_000        # sequence gaps ≥ 30 s of missing coverage → fai
 MAX_COVER_MS = 60_000       # hard cap; phone enforces, server truncates → failed
 STT_TIMEOUT_S = 90
 REPLY_TIMEOUT_S = 180
-GATEWAY_WS_URL = 'ws://10.0.0.126:9119/api/ws'  # runtime: os.environ['GATEWAY_WS_URL'] wins
+GATEWAY_WS_URL = 'ws://127.0.0.1:9119/api/ws'  # hermes serve runs on this same machine; os.environ['GATEWAY_WS_URL'] wins
 TOKEN_TTL_SECONDS = 12 * 3600  # matches mint_access_token.py default
 
 # ------------------------------------------------------------------- auth ---

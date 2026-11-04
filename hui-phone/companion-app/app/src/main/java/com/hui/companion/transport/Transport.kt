@@ -192,9 +192,10 @@ class Transport(
 
         return OkHttpClient.Builder()
             .sslSocketFactory(sslContext.socketFactory, trustManager)
-            .hostnameVerifier { hostname, _ ->
-                hostname == "10.0.0.126" || hostname == "localhost" || hostname == "127.0.0.1"
-            }
+            // Cert pinning (above) is what authenticates the server, so any
+            // hostname/IP is acceptable here — the app must work on any
+            // network, not just one baked-in address.
+            .hostnameVerifier { _, _ -> true }
             .pingInterval(15, TimeUnit.SECONDS)
             .build()
     }

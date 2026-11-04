@@ -19,7 +19,8 @@
 cd hui-phone/server && python3 companion_wss_server.py
 
 # 2. App on the phone — download the APK from the latest GitHub Release,
-#    or build locally:
+#    or build locally. The APK contains no server address: scan the QR
+#    from hermes_auth_qr.py (Settings → Authentication) to connect.
 cd hui-phone/companion-app
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
 export ANDROID_HOME=/home/papa/Android/Sdk

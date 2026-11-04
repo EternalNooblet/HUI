@@ -14,11 +14,12 @@ object Config {
         getOrCreateDeviceId()
     }
     
-    // Server connection
+    // Server connection — empty until the user scans a QR code or enters a
+    // URL manually (Settings). Never baked into the APK.
     var serverUrl: String = BuildConfig.SERVER_URL
         private set
-    
-    var wsUrl: String = BuildConfig.SERVER_URL.replace("http://", "ws://").replace("https://", "wss://") + "/ws"
+
+    var wsUrl: String = deriveWsUrl(BuildConfig.SERVER_URL)
         private set
     
     var authToken: String? = null
@@ -76,9 +77,12 @@ object Config {
     
     fun setServerUrl(url: String) {
         serverUrl = url
-        wsUrl = url.replace("http://", "ws://").replace("https://", "wss://") + "/ws"
+        wsUrl = deriveWsUrl(url)
         getPrefs().edit().putString("server_url", url).commit()
     }
+
+    private fun deriveWsUrl(url: String): String =
+        if (url.isBlank()) "" else url.replace("http://", "ws://").replace("https://", "wss://") + "/ws"
 
     fun loadServerUrl(): String {
         return getPrefs().getString("server_url", null)?.let {

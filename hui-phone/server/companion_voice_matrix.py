@@ -119,7 +119,8 @@ async def client_ws(device_id):
     ctx = ssl.SSLContext()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
-    ws = await websockets.connect('wss://10.0.0.126:8081/ws', ssl=ctx,
+    ws_url = os.environ.get('COMPANION_WS_URL', 'wss://127.0.0.1:8081/ws')
+    ws = await websockets.connect(ws_url, ssl=ctx,
                                   additional_headers={'X-Device-ID': device_id}).__aenter__()
     await ws.send(json.dumps({'type': 'hello', 'device_id': device_id,
                               'capabilities': ['audio', 'voice']}))
@@ -211,7 +212,7 @@ async def post_session(device_id, session, chunks, last_sequence, duration_ms):
     def post(etype, payload):
         body = {'type': etype, 'device_id': device_id,
                 'payload': dict(payload, voice_session=session)}
-        req = Request('https://10.0.0.126:8081/events',
+        req = Request(os.environ.get('COMPANION_HTTP_URL', 'https://127.0.0.1:8081') + '/events',
                       data=json.dumps(body).encode(), method='POST',
                       headers={'Content-Type': 'application/json',
                                'X-Device-ID': device_id})

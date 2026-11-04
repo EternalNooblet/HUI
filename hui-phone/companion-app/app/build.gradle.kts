@@ -60,7 +60,12 @@ android {
         buildConfigField("Long", "BUILD_NUMBER", "${buildNumber}L")
         buildConfigField("String", "BUILD_TIMESTAMP", "\"$buildNumber\"")
 
-        buildConfigField("String", "SERVER_URL", "\"wss://10.0.0.126:8081\"")
+        // No baked-in server address: the URL comes from a QR scan (or manual
+        // entry) at runtime and is stored in encrypted prefs. A build-time
+        // SERVER_URL env/property may still set a dev default, but releases
+        // ship with it empty so the same APK works on any network.
+        val defaultServerUrl = propOrEnv("SERVER_URL") ?: ""
+        buildConfigField("String", "SERVER_URL", "\"$defaultServerUrl\"")
         buildConfigField("String", "DEVICE_ID", "\"\"")
     }
 
