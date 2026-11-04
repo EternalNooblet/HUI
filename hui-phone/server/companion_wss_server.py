@@ -648,6 +648,14 @@ async def _voice_finalize(device_id, entry, payload):
                                  {'state': 'failed', 'voice_session': session})
         return
 
+    # Echo the user's own words so they land as a user bubble in the
+    # shared session before the assistant reply (speak). Ordered:
+    # voice_transcript must arrive before speak — send_voice_command
+    # preserves per-socket send order.
+    await send_voice_command(entry['ws'], device_id, 'voice_transcript',
+                             {'text': transcript, 'voice_session': session})
+    logger.info(f"🎧 voice_transcript {session}: {transcript[:80]}")
+
     global bridge
     if bridge is None:
         bridge = GatewayBridge()

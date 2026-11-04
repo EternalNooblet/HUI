@@ -171,7 +171,9 @@ async def collect(ws, session, timeout, extra_drain=1.5):
             p = f.get('payload') or {}
             if p.get('voice_session') != session:
                 continue
-            if f.get('command') == 'speak':
+            if f.get('command') == 'voice_transcript':
+                got.append(('transcript', p.get('text')))
+            elif f.get('command') == 'speak':
                 got.append(('speak', p.get('text')))
 
     deadline = asyncio.get_running_loop().time() + timeout
@@ -193,6 +195,8 @@ async def collect(ws, session, timeout, extra_drain=1.5):
             if p.get('state') == 'failed':
                 await drain(extra_drain)
                 return got
+        elif f.get('command') == 'voice_transcript':
+            got.append(('transcript', p.get('text')))
         elif f.get('command') == 'speak':
             got.append(('speak', p.get('text')))
             await drain(extra_drain)
@@ -349,6 +353,7 @@ async def b_case(name, mode, shape, chunks, seqs, last_sequence, duration_ms,
         got = await collect(ws, sess, timeout=collect_timeout)
         states = [v for k, v in got if k == 'state']
         speaks = [t for k, t in got if k == 'speak']
+        transcripts = [t for k, t in got if k == 'transcript']
 
         if reply_expected:
             ok = (states[:2] == ['received', 'transcribing']
@@ -357,6 +362,12 @@ async def b_case(name, mode, shape, chunks, seqs, last_sequence, duration_ms,
                   and f'(shape={shape})' in speaks[0])
             claim(name + ' reply leg', ok,
                   f'states={states} speaks={len(speaks)} txt={speaks[:1]}')
+            # Gap fill: user bubble (transcript) must arrive before speak.
+            kinds = [k for k, _ in got]
+            claim(name + ' voice_transcript precedes speak',
+                  transcripts and kinds.index('transcript') < kinds.index('speak')
+                  and transcripts[0].strip(),
+                  f'transcripts={transcripts[:1]} kinds={kinds}')
         if failed_at_bridge:
             ok = (states[:2] == ['received', 'transcribing']
                   and states[-1:] == ['failed'] and not speaks)

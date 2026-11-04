@@ -13,30 +13,28 @@ class CommandExecutor(private val context: Context) {
         Timber.i("Executing command: ${command.command}, payload: ${command.payload}")
         return when (command.command) {
             "speak" -> {
+                // Voice-originated reply: bubble (always) + native TTS read-out.
                 command.payload.text?.let { text ->
-                    if (VoiceUi.voiceRecording) {
-                        VoiceUi.handleVoiceTranscript(text, command.payload.voiceSession ?: "")
-                    } else {
-                        val voice = command.payload.voice ?: Config.loadVoice()
-                        val pitch = command.payload.pitch ?: Config.loadPitch()
-                        Timber.i("Speaking: $text")
-                        val tts = TextToSpeech(context, object : TextToSpeech.OnInitListener {
-                            override fun onInit(status: Int) {
-                                if (status == TextToSpeech.SUCCESS) {
-                                    this@CommandExecutor.speakText(text, voice, pitch)
-                                } else {
-                                    Timber.e("TTS initialization failed: $status")
-                                }
-                            }
-                        })
-                    }
+                    val voiceSession = command.payload.voiceSession ?: ""
+                    VoiceUi.handleVoiceReply(text, voiceSession)
+                    val voice = command.payload.voice ?: Config.loadVoice()
+                    val pitch = command.payload.pitch ?: Config.loadPitch()
+                    Timber.i("Speaking: $text")
+                    speakWithNativeTts(text, voice, pitch)
+                }
+                Result.Success()
+            }
+            "voice_transcript" -> {
+                // User's own words, echoed by the server before the reply.
+                command.payload.text?.let { text ->
+                    VoiceUi.handleVoiceTranscript(text, command.payload.voiceSession ?: "")
                 }
                 Result.Success()
             }
             "chat_reply" -> {
+                // Text/image-originated reply: bubble only, never TTS.
                 command.payload.text?.let { text ->
-                    val voiceSession = command.payload.voiceSession ?: ""
-                    VoiceUi.handleChatReply(text, voiceSession)
+                    VoiceUi.handleChatReply(text, command.payload.voiceSession ?: "")
                 }
                 Result.Success()
             }
@@ -77,28 +75,30 @@ class CommandExecutor(private val context: Context) {
     }
 
     private fun handleVoiceState(command: Command): Result {
-        val state = command.payload.text ?: ""
+        val state = command.payload.state ?: command.payload.text ?: ""
         val voiceSession = command.payload.voiceSession ?: ""
         VoiceUi.handleVoiceState(state, voiceSession)
         return Result.Success()
     }
 
-    private fun speakText(text: String, voice: String?, pitch: Float?) {
-        val ttsRef = arrayOfNulls<TextToSpeech>(1)
-        ttsRef[0] = TextToSpeech(context, object : TextToSpeech.OnInitListener {
+    private fun speakWithNativeTts(text: String, voice: String?, pitch: Float?) {
+        // Android native speech engine (phone TTS), single instance.
+        val ref = arrayOfNulls<TextToSpeech>(1)
+        val tts = TextToSpeech(context, object : TextToSpeech.OnInitListener {
             override fun onInit(status: Int) {
-                if (status == TextToSpeech.SUCCESS) {
-                    val tts = ttsRef[0] ?: TextToSpeech(context, null)
-                    voice?.let { applyVoice(tts, it) }
-                    pitch?.let { applyPitch(tts, it) }
-                    tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "companion_tts")
-                } else {
-                    Timber.e("TTS initialization failed in speakText: $status")
+                if (status != TextToSpeech.SUCCESS) {
+                    Timber.e("TTS initialization failed: $status")
+                    return
                 }
+                val engine = ref[0] ?: return
+                voice?.let { applyVoice(engine, it) }
+                pitch?.let { applyPitch(engine, it) }
+                engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "companion_tts")
             }
         })
+        ref[0] = tts
     }
-    
+
     private fun applyVoice(tts: TextToSpeech, code: String) {
         val parts = code.lowercase().split("-")
         val locale = if (parts.size >= 2)
@@ -113,7 +113,7 @@ class CommandExecutor(private val context: Context) {
             Timber.i("TTS voice set: $code (status $status)")
         }
     }
-    
+
     private fun applyPitch(tts: TextToSpeech, multiplier: Float) {
         val clamped = if (multiplier < 0.5f) 0.5f else if (multiplier > 2.0f) 2.0f else multiplier
         val status = tts.setPitch(clamped)
