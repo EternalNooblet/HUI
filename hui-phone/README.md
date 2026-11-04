@@ -6,12 +6,6 @@
 
 <p align="center">Android companion app. The phone is a sensor client; all heavy compute runs on the server over WSS/TLS.</p>
 
-```
-[Phone: Android 8.1+] ──WSS/TLS──▶ [Server: wss://host:8081/ws]
-  foreground service, battery/screen/notification monitors,
-  dual-mode voice + text chat UI
-```
-
 ## Setup
 
 **Start with [`server/AI_SETUP.md`](server/AI_SETUP.md)** — it has the full
