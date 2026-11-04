@@ -3,9 +3,10 @@
 #   ./install.sh
 # What it does:
 #   1. Installs Python deps (into the Hermes venv python if found, else python3)
-#   2. Generates a self-signed TLS cert (server.crt/server.key) if missing,
+#   2. Installs qrterminal (pinned download, checksum-verified) if missing
+#   3. Generates a self-signed TLS cert (server.crt/server.key) if missing,
 #      with the LAN IP as a SAN entry
-#   3. Prints the remaining manual steps (start hermes serve, run server, QR)
+#   4. Prints the remaining manual steps (start hermes serve, run server, QR)
 set -e
 cd "$(dirname "$0")"
 
@@ -25,6 +26,35 @@ if [ -n "$HERMES_PY" ] && [ -x "$HERMES_PY" ]; then
   echo "using Hermes venv python: $PY"
 fi
 "$PY" -m pip install -r requirements.txt
+
+# --- 1b. qrterminal binary (QR rendering) — download pinned, never bundle ---
+QR_VERSION="v4.0.0"
+QRT_SHA_X86_64="a182c40251fc9db9de276583011b0f0c48e88f1e533424d0ac56b39cfbdf9c00"
+QRT_SHA_ARM64="3bcaea6fc0bf5ad8e52beb6c56323f3b3990d813ff72f0f87ba19977caaaa82f"
+if command -v qrterminal >/dev/null 2>&1 || [ -x "$HOME/bin/qrterminal" ]; then
+  echo "qrterminal already available — skipping download."
+else
+  case "$(uname -m)" in
+    x86_64|amd64) ARCH=x86_64; SHA="$QRT_SHA_X86_64" ;;
+    aarch64|arm64) ARCH=arm64; SHA="$QRT_SHA_ARM64" ;;
+    *) echo "warning: unsupported arch $(uname -m) for qrterminal; QR will use ASCII fallback." ;;
+  esac
+  if [ -n "${ARCH:-}" ]; then
+    url="https://github.com/mdp/qrterminal/releases/download/${QR_VERSION}/qrterminal_Linux_${ARCH}.tar.gz"
+    tmp="$(mktemp -d)"
+    echo "downloading qrterminal ${QR_VERSION} (${ARCH})..."
+    curl -fsSL -o "$tmp/qrterminal.tar.gz" "$url"
+    got="$(sha256sum "$tmp/qrterminal.tar.gz" | awk '{print $1}')"
+    if [ "$got" != "$SHA" ]; then
+      echo "error: qrterminal checksum mismatch ($got)" >&2; rm -rf "$tmp"; exit 1
+    fi
+    tar xzf "$tmp/qrterminal.tar.gz" -C "$tmp"
+    mkdir -p "$HOME/bin"
+    install -m 755 "$tmp/qrterminal" "$HOME/bin/qrterminal"
+    rm -rf "$tmp"
+    echo "installed qrterminal to ~/bin/qrterminal"
+  fi
+fi
 
 # --- 2. TLS cert (only if missing; never overwrite an existing one) ---
 if [ ! -f server.crt ] || [ ! -f server.key ]; then
