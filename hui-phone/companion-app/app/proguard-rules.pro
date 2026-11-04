@@ -5,6 +5,11 @@
 -keep class com.google.gson.** { *; }
 -keep class androidx.room.** { *; }
 -keep class androidx.security.crypto.** { *; }
+# ML Kit barcode scanning (Play services backend loads these reflectively).
+# Without these, R8 shrinks them and the scanner silently never returns.
+-keep class com.google.mlkit.** { *; }
+-keep class com.google.android.gms.vision.barcode.** { *; }
+-keep class com.google.android.gms.mlkit.** { *; }
 
 -keepclassmembers class * {
     @androidx.room.Entity *;
