@@ -293,12 +293,11 @@ def main() -> None:
     ip = args.ip or lan_ip()
     token = mint_token(args.ttl)
     claims = token_claims(token)
+    # Keep the payload minimal so the ASCII QR fits an 80-column terminal
+    # (ip/port are derivable from ws_url; exp is unused by the app).
     payload = {
         "ws_url": f"wss://{ip}:{args.wss_port}/ws",
-        "ip": ip,
-        "port": args.wss_port,
         "token": token,
-        "exp": int(claims.get("exp") or token_exp(token)),
         # SHA-256 of server.crt: the app pins the server cert from this
         # out-of-band value — nothing cert-specific is baked into the APK.
         "cert_sha256": cert_fingerprint(),
@@ -315,8 +314,9 @@ def main() -> None:
 
     ensure_qrcode()
     print(f"Scan with the phone: Settings → Authentication → Scan QR code", file=sys.stderr)
-    print(f"Payload: ws_url={payload['ws_url']} exp={payload['exp']} "
-          f"({max(0, payload['exp'] - int(time.time()))}s left)", file=sys.stderr)
+    exp_ts = token_exp(token)
+    print(f"Payload: ws_url={payload['ws_url']} exp={exp_ts} "
+          f"({max(0, exp_ts - int(time.time()))}s left)", file=sys.stderr)
     print_ascii_qr(ensure_qrcode(), payload_str)
 
 
