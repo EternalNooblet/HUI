@@ -259,7 +259,9 @@ def _reexec_with_qrcode_python() -> None:
 
 
 def print_ascii_qr(qrcode, payload_str: str) -> None:
-    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M,
+    # EC level L = fewest modules for the payload (65 vs 73 at M), so each
+    # module renders largest and phone cameras resolve it most easily.
+    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_L,
                        box_size=1, border=2)
     qr.add_data(payload_str)
     qr.make(fit=True)
