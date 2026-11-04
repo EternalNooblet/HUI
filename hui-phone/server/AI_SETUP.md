@@ -92,9 +92,9 @@ in-process — one model total, no second copy.
 ## 5. TLS certs
 
 `install.sh` generates the cert with the LAN IP as a SAN entry. The app
-authenticates it via the cert fingerprint in the QR code (step 6) — the
-APK contains no cert, so regenerating certs never requires an APK rebuild.
-Just re-scan the QR.
+the app accepts it and the signed token (step 6) authenticates
+the server — the APK contains no cert, so regenerating certs never
+requires an APK rebuild.
 
 ## 6. Phone login via QR
 
