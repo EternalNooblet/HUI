@@ -261,8 +261,10 @@ def _reexec_with_qrcode_python() -> None:
 def print_ascii_qr(qrcode, payload_str: str) -> None:
     # EC level L = fewest modules for the payload, so each module renders
     # largest and phone cameras resolve it most easily.
+    # border=4 is the QR spec minimum quiet zone — scanners need it to
+    # locate the code reliably.
     qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_L,
-                       box_size=1, border=2)
+                       box_size=1, border=4)
     qr.add_data(payload_str)
     qr.make(fit=True)
     # print_ascii renders half-blocks; invert=True gives dark-on-light
