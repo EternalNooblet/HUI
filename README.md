@@ -7,7 +7,11 @@ Two components, no shared deps, no shared builds.
 | [hui-cli/](hui-cli/) | Go terminal client for a remote Hermes gateway | `./build.sh` → `builds/hui` |
 | [hui-phone/](hui-phone/) | Android companion app + WSS server | `./gradlew assembleRelease` → APK |
 
-### Demo
+### Demos
+
+The phone app in action!
+
+https://github.com/user-attachments/assets/fbce7eac-1f51-4752-bd6c-aa67fb4100d8
 
 A full hui-cli session: connect, typed prompt, streamed reply, `/status`, an inline approval, clean exit.
 
