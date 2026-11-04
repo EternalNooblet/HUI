@@ -18,10 +18,10 @@
 2. Unzip the server zip, run `./install.sh`, then start the server
    (`companion_wss_server.py`).
 3. Install the APK on your phone, grant camera + mic when it asks.
-4. On the server machine run `./hui-qr`, scan the QR in the app
-   (Settings → Authentication). Done — the app connects on its own.
+4. On the server machine run `./hui-qr` - this will print an ascii QR code
+5. Scan the QR in the app (Settings → Authentication).
 
-That's it. Voice input, dashboard auth, and troubleshooting details live in
+Full details live in
 [`server/AI_SETUP.md`](server/AI_SETUP.md).
 
 ## Run it
