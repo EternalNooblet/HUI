@@ -172,9 +172,8 @@ dependencies {
     // Image loading for ImageMessageView (prompt-kit Image component)
     implementation("io.coil-kt:coil:2.5.0")
 
-    // QR decoding: ZXing (pure Java, bundled in the APK — no Google Play
-    // services model download, works offline, reads dense QRs reliably)
-    implementation("com.google.zxing:core:3.5.3")
+    // QR authentication (ML Kit + CameraX)
+    implementation("com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1")
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
