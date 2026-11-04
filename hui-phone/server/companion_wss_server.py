@@ -382,6 +382,7 @@ class GatewayBridge:
         self.client = None
 
 bridge = None  # lazily created — the server works standalone without hermes serve
+_bridge_lock = asyncio.Lock()  # GatewayBridge is a single gateway ws; serialize prompt_reply so background chat tasks don't interleave frames
 
 def _json_frame(raw):
     try:
@@ -392,20 +393,40 @@ def _json_frame(raw):
 
 async def send_voice_command(ws, device_id, command, payload):
     """Dispatch to the socket that owns the voice session (falls back to the
-    device's last registered ws — that's what makes POST /events work)."""
-    if ws is None:
+    device's last registered ws — that's what makes POST /events work).
+
+    If the captured ws has closed (phone dropped/reconnected during a long
+    bridge turn — e.g. OkHttp ping timeout), fall back to the device's
+    current connection and retry once there, so a chat_reply/speak that
+    arrived after the reconnect isn't lost into a dead socket."""
+    def _latest_ws():
         entries = connected_devices.get(device_id)
-        ws = entries[-1]['ws'] if entries else None
+        return entries[-1]['ws'] if entries else None
+
+    if ws is not None and getattr(ws, 'closed', False):
+        logger.warning(f"Captured ws closed for {device_id}: {command} — falling back to latest connection")
+        ws = _latest_ws()
+    if ws is None:
+        ws = _latest_ws()
     if ws is None:
         logger.warning(f"No socket for voice dispatch to {device_id}: {command}")
         return False
+    msg = {'type': 'command', 'command': command,
+           'request_id': str(uuid.uuid4())[:8], 'payload': payload}
     try:
-        await ws.send_json({'type': 'command', 'command': command,
-                            'request_id': str(uuid.uuid4())[:8], 'payload': payload})
+        await ws.send_json(msg)
         return True
     except Exception as e:
-        logger.error(f"Voice command failed for {device_id}: {e}")
-        return False
+        logger.error(f"Voice command failed for {device_id}: {e} — retrying on latest connection")
+    fallback = _latest_ws()
+    if fallback is not None and fallback is not ws and not getattr(fallback, 'closed', False):
+        try:
+            await fallback.send_json(msg)
+            logger.info(f"Voice command retried OK for {device_id}: {command}")
+            return True
+        except Exception as e2:
+            logger.error(f"Voice command retry failed for {device_id}: {e2}")
+    return False
 
 _stt_model_name = None
 
@@ -507,7 +528,8 @@ async def chat_handle(device_id, event, ws):
     if bridge is None:
         bridge = GatewayBridge()
     try:
-        reply = await bridge.prompt_reply(text)
+        async with _bridge_lock:
+            reply = await bridge.prompt_reply(text)
     except Exception as e:
         logger.error(f"bridge failed for chat: {e}")
         await send_voice_command(ws, device_id, 'chat_reply', {'text': f'Error: {e}', 'voice_session': voice_session})
@@ -630,7 +652,8 @@ async def _voice_finalize(device_id, entry, payload):
     if bridge is None:
         bridge = GatewayBridge()
     try:
-        reply = await bridge.prompt_reply(transcript)
+        async with _bridge_lock:
+            reply = await bridge.prompt_reply(transcript)
     except BridgeFailed as e:
         logger.error(f"bridge failed for {session}: {e}")
         await send_voice_command(entry['ws'], device_id, 'voice_state',
@@ -720,7 +743,15 @@ async def ws_handler(request):
             if msg.type == WSMsgType.TEXT:
                 try:
                     event = json.loads(msg.data)
-                    await handle_event(device_id, event, ws)
+                    # Long bridge turns (chat) run in background so this
+                    # loop can detect disconnects / process new messages
+                    # while the gateway is thinking. prompt_reply is
+                    # serialized via _bridge_lock, so concurrent chats
+                    # queue at the bridge, not interleaved on its socket.
+                    if event.get('type') == 'chat':
+                        asyncio.create_task(handle_event(device_id, event, ws))
+                    else:
+                        await handle_event(device_id, event, ws)
                 except json.JSONDecodeError as e:
                     logger.error(f"Invalid JSON from {device_id}: {e}")
             elif msg.type == WSMsgType.ERROR:
