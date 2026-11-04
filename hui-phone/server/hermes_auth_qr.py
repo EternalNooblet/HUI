@@ -168,6 +168,27 @@ def mint_token(ttl: int) -> str:
     return base64.b64encode(payload + sig).decode()
 
 
+def cert_fingerprint() -> str:
+    """SHA-256 (hex) of server.crt DER — the app pins this from the QR.
+
+    No cert is ever baked into the APK; the fingerprint travels out-of-band
+    in the QR payload so any user's server cert works with the same APK.
+    """
+    import hashlib
+    import ssl
+    cert_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "server.crt")
+    try:
+        with open(cert_path, "rb") as f:
+            pem = f.read()
+        # PEM -> DER via ssl (stdlib only)
+        der_bytes = ssl.PEM_cert_to_DER_cert(pem.decode())
+        return hashlib.sha256(der_bytes).hexdigest().upper()
+    except Exception as e:
+        print(f"warning: cannot read {cert_path} ({e}); QR will carry no cert fingerprint",
+              file=sys.stderr)
+        return ""
+
+
 def token_claims(token: str) -> dict:
     """Decoded payload claims: token = base64(payload_json || 32-byte HMAC)."""
     try:
@@ -278,6 +299,9 @@ def main() -> None:
         "port": args.wss_port,
         "token": token,
         "exp": int(claims.get("exp") or token_exp(token)),
+        # SHA-256 of server.crt: the app pins the server cert from this
+        # out-of-band value — nothing cert-specific is baked into the APK.
+        "cert_sha256": cert_fingerprint(),
         # jti identifies this one QR/token for server-side revocation
         # (server/hermes_revoke_token.py --jti ...). Settings ignores
         # unknown fields, so older app builds still work.

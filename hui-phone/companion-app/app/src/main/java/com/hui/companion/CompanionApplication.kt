@@ -21,6 +21,7 @@ class CompanionApplication : Application() {
             com.hui.companion.util.Config.loadVoice()
             com.hui.companion.util.Config.loadAuthToken()
             com.hui.companion.util.Config.loadServerUrl()
+            com.hui.companion.util.Config.loadCertFingerprint()
         } catch (e: Exception) {
             Timber.w("Could not load persisted config on startup", e)
         }

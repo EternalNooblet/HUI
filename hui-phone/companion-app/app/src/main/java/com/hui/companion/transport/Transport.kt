@@ -1,10 +1,8 @@
 package com.hui.companion.transport
 
 import android.content.Context
-import android.content.res.Resources
-import android.util.Base64
-import com.hui.companion.R
 import com.hui.companion.util.Config
+import com.hui.companion.util.PinnedTls
 import com.hui.companion.event.Command
 import com.hui.companion.event.Event
 import com.hui.companion.event.EventBus
@@ -12,14 +10,7 @@ import com.hui.companion.event.Result
 import okhttp3.*
 import okio.ByteString
 import timber.log.Timber
-import java.io.InputStream
-import java.security.KeyStore
-import java.security.cert.CertificateFactory
-import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
-import javax.net.ssl.SSLContext
-import javax.net.ssl.TrustManagerFactory
-import javax.net.ssl.X509TrustManager
 
 class Transport(
     private val context: Context,
@@ -27,7 +18,8 @@ class Transport(
     private val commandExecutor: CommandExecutor
 ) {
     private var webSocket: WebSocket? = null
-    private val client = buildClient()
+    private var client: OkHttpClient = buildClient()
+    private var builtFingerprint: String? = Config.certFingerprint ?: Config.loadCertFingerprint()
     private var reconnectDelay = 1000L
     private var isConnecting = false
     // True after disconnect() / 401 / unauthenticated drop: onClosed/onFailure
@@ -121,6 +113,14 @@ class Transport(
 
     fun connect() {
         if (isConnecting || webSocket != null) return
+        // QR scan may have stored a new cert fingerprint after this client
+        // was built — rebuild the TLS client so it pins the new cert.
+        val currentFingerprint = Config.certFingerprint ?: Config.loadCertFingerprint()
+        if (currentFingerprint != builtFingerprint) {
+            Timber.i("TLS: fingerprint changed, rebuilding client")
+            client = buildClient()
+            builtFingerprint = currentFingerprint
+        }
         if (Config.wsUrl.isBlank()) {
             Timber.w("No server URL configured")
             return
@@ -186,36 +186,11 @@ class Transport(
     }
 
     private fun buildClient(): OkHttpClient {
-        val trustManager = createTrustManager()
-        val sslContext = SSLContext.getInstance("TLS")
-        sslContext.init(null, arrayOf(trustManager), java.security.SecureRandom())
-
+        val trustManager = PinnedTls.trustManager()
         return OkHttpClient.Builder()
-            .sslSocketFactory(sslContext.socketFactory, trustManager)
-            // Cert pinning (above) is what authenticates the server, so any
-            // hostname/IP is acceptable here — the app must work on any
-            // network, not just one baked-in address.
-            .hostnameVerifier { _, _ -> true }
+            .sslSocketFactory(PinnedTls.sslContext(trustManager).socketFactory, trustManager)
+            .hostnameVerifier(PinnedTls.hostnameVerifier())
             .pingInterval(15, TimeUnit.SECONDS)
             .build()
-    }
-
-    private fun createTrustManager(): X509TrustManager {
-        val ks = KeyStore.getInstance(KeyStore.getDefaultType()).apply { load(null, null) }
-        val certFactory = CertificateFactory.getInstance("X.509")
-
-        val inputStream: InputStream = context.resources.openRawResource(R.raw.server_cert)
-        val cert = certFactory.generateCertificate(inputStream) as X509Certificate
-        inputStream.close()
-        ks.setCertificateEntry("server_cert", cert)
-        Timber.i("Loaded pinned certificate from raw resource")
-
-        val tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
-        tmf.init(ks)
-        val trustManager = tmf.trustManagers.firstOrNull { it is X509TrustManager } as? X509TrustManager
-            ?: throw IllegalStateException("No X509TrustManager found")
-
-        Timber.i("Using pinned certificate trust manager")
-        return trustManager
     }
 }

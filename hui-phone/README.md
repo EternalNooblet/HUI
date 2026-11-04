@@ -62,7 +62,7 @@ Local builds without keystore settings sign with the debug key; CI releases sign
 
 - WSS won't connect: is the server running? `ss -tlnp | grep 8081`
 - Service won't start: `adb logcat -s CompanionService:V Transport:V`
-- Cert errors: the app trusts the server's self-signed cert in `server/` (gitignored) and the embedded copy in the app.
+- Cert errors: the app pins the server cert's fingerprint from the QR scan — if you regenerate certs, just re-scan the QR.
 
 ## License
 
