@@ -24,6 +24,12 @@ object Config {
     
     var authToken: String? = null
         private set
+
+    // TLS cert fingerprint (SHA-256 hex) delivered out-of-band via the QR
+    // scan. This is how the app authenticates a self-signed server cert
+    // without anything server-specific baked into the APK.
+    var certFingerprint: String? = null
+        private set
     
     // TTS voice selection (system voice locale code, e.g. "en-US", "fr-FR")
     var ttsVoice: String? = null
@@ -95,6 +101,14 @@ object Config {
         authToken = token
         getPrefs().edit().putString("auth_token", token).commit()
     }
+
+    fun setCertFingerprint(fingerprint: String) {
+        certFingerprint = fingerprint
+        getPrefs().edit().putString("cert_sha256", fingerprint).commit()
+    }
+
+    fun loadCertFingerprint(): String? =
+        getPrefs().getString("cert_sha256", null)?.also { certFingerprint = it }
     
     fun loadAuthToken(): String? {
         return getPrefs().getString("auth_token", null)?.also { authToken = it }

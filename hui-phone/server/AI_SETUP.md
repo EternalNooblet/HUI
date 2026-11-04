@@ -89,11 +89,12 @@ stt:
 First voice message is slow (model download + load); after that it's cached
 in-process — one model total, no second copy.
 
-## 5. TLS certs — see the cert note in the README
+## 5. TLS certs
 
 `install.sh` generates the cert with the LAN IP as a SAN entry. The app
-pins this cert, so if you regenerate it, copy `server.crt` to the app's
-`res/raw/server_cert.crt` and rebuild the APK.
+authenticates it via the cert fingerprint in the QR code (step 6) — the
+APK contains no cert, so regenerating certs never requires an APK rebuild.
+Just re-scan the QR.
 
 ## 6. Phone login via QR
 

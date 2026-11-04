@@ -312,7 +312,7 @@ class MainActivity : AppCompatActivity() {
             }
         } ?: return
 
-        val client = OkHttpClient()
+        val client = com.hui.companion.util.PinnedTls.okHttpClient()
         val requestBody = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart("file", cacheFile.name,
