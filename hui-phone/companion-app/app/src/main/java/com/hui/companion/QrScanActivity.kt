@@ -2,8 +2,14 @@ package com.hui.companion
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
+import android.graphics.ImageFormat
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
 import android.os.Bundle
+import android.util.Log
+import android.util.Size
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
@@ -35,9 +41,12 @@ class QrScanActivity : AppCompatActivity() {
         providerFuture.addListener({
             val provider = providerFuture.get()
             val preview = Preview.Builder().build().also { it.setSurfaceProvider(pv.surfaceProvider) }
-            val analysis = ImageAnalysis.Builder()
+            // Dense QRs need the highest resolution the camera offers —
+            // default analysis resolution blurs the modules together.
+            val analysisBuilder = ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                .build()
+            highestCameraResolution()?.let { analysisBuilder.setTargetResolution(it) }
+            val analysis = analysisBuilder.build()
                 .also { a ->
                     a.setAnalyzer(cameraExecutor) { imageProxy ->
                         process(imageProxy)
@@ -81,6 +90,25 @@ class QrScanActivity : AppCompatActivity() {
                 .addOnCompleteListener { imageProxy.close() }
         } else {
             imageProxy.close()
+        }
+    }
+
+    /** Largest YUV output size this camera supports, or null if unknown. */
+    private fun highestCameraResolution(): Size? {
+        return try {
+            val manager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
+            val cameraId = manager.cameraIdList.firstOrNull { id ->
+                manager.getCameraCharacteristics(id)
+                    .get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_BACK
+            } ?: manager.cameraIdList.first()
+            val map = manager.getCameraCharacteristics(cameraId)
+                .get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+                ?: return null
+            map.getOutputSizes(ImageFormat.YUV_420_888)
+                ?.maxByOrNull { it.width * it.height }
+        } catch (e: Exception) {
+            Log.w("QrScan", "Resolution query failed, using CameraX default", e)
+            null
         }
     }
 
