@@ -53,7 +53,7 @@ MAX_COVER_MS = 60_000       # hard cap; phone enforces, server truncates → fai
 STT_TIMEOUT_S = 90
 REPLY_TIMEOUT_S = 180
 GATEWAY_WS_URL = 'ws://127.0.0.1:9119/api/ws'  # hermes serve runs on this same machine; os.environ['GATEWAY_WS_URL'] wins
-TOKEN_TTL_SECONDS = 12 * 3600  # matches mint_access_token.py default
+TOKEN_TTL_SECONDS = 365 * 24 * 3600  # 1-year default (matches mint_access_token.py)
 
 # ------------------------------------------------------------------- auth ---
 # Phone auth (option C: per-token revocation). The QR token is the same

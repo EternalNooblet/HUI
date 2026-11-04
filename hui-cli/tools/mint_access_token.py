@@ -44,7 +44,7 @@ def main() -> None:
     if not user or not raw:
         sys.exit("username/secret must both be non-empty in the auth config")
 
-    ttl = int(os.environ.get("TOKEN_TTL_SECONDS", str(12 * 3600)))
+    ttl = int(os.environ.get("TOKEN_TTL_SECONDS", str(365 * 24 * 3600)))
     exp = int(time.time()) + max(60, ttl)
     # jti: unique per minted token so companion_wss_server can revoke
     # this one QR/phone (server/revoked_tokens.json) without rotating
