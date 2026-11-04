@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Attachment preview chip shown in PromptInputActions after file selected -->
-<merge xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
@@ -28,6 +28,14 @@
         android:ellipsize="end"
         android:text="@string/attachment_preview_default" />
 
+    <!-- Uploading indicator (FileUpload: send gated until upload finishes) -->
+    <ProgressBar
+        android:id="@+id/attachmentProgress"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_marginEnd="@dimen/pk_space_1"
+        android:visibility="gone" />
+
     <!-- Remove button -->
     <ImageButton
         android:id="@+id/attachmentRemove"
@@ -40,4 +48,4 @@
         android:padding="@dimen/pk_space_1"
         android:scaleType="centerInside" />
 
-</merge>
+</LinearLayout>

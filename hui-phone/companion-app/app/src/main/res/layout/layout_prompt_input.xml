@@ -12,7 +12,20 @@
         android:paddingTop="@dimen/pk_space_2"
         android:paddingBottom="@dimen/pk_space_2">
 
-        <!-- Textarea wrap: typed text 21sp (70% of 30sp placeholder), placeholder overlay shown when empty -->
+        <!-- Attachment previews: above the textarea (FileUpload previews),
+             NOT in the actions row. Populated by AttachmentPicker. -->
+        <LinearLayout
+            android:id="@+id/promptInputPreviews"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingBottom="@dimen/pk_space_1"
+            android:visibility="gone" />
+
+        <!-- Textarea: text-base (16sp) like prompt-kit; placeholder is the
+             SAME size (web placeholder inherits input font size). sp units
+             so text scales with the user's font-size setting. -->
         <FrameLayout
             android:id="@+id/promptInputTextareaWrap"
             android:layout_width="match_parent"
@@ -23,7 +36,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:minHeight="@dimen/pk_input_min_height"
-                android:textSize="21sp"
+                android:textSize="@dimen/pk_text_base"
                 android:textColor="@color/pk_foreground"
                 android:background="@null"
                 android:padding="@dimen/pk_space_2"
@@ -40,7 +53,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:text="@string/prompt_input_placeholder"
-                android:textSize="30sp"
+                android:textSize="@dimen/pk_text_base"
                 android:textColor="@color/pk_muted_foreground"
                 android:alpha="0.8"
                 android:gravity="center"

@@ -13,6 +13,8 @@ import androidx.core.content.ContextCompat
 import coil.ImageLoader
 import coil.request.ImageRequest
 import com.hui.companion.R
+import com.hui.companion.util.Config
+import com.hui.companion.util.PinnedTls
 import timber.log.Timber
 
 /** ImageMessageView
@@ -34,7 +36,14 @@ class ImageMessageView @JvmOverloads constructor(
     private var imageView: ImageView? = null
     private var progressBar: ProgressBar? = null
     private var errorText: TextView? = null
-    private val imageLoader = ImageLoader.Builder(context).build()
+    // Server uploads are fetched over the self-signed LAN cert, so Coil must
+    // share the pinned client used for the WSS /upload calls. No cert data
+    // is baked in (the signed token authenticates the server).
+    private val imageLoader: ImageLoader by lazy {
+        ImageLoader.Builder(context)
+            .okHttpClient { PinnedTls.okHttpClient() }
+            .build()
+    }
 
     init {
         orientation = VERTICAL
@@ -54,19 +63,30 @@ class ImageMessageView @JvmOverloads constructor(
         hideError()
     }
 
-    /** Load an image from a URL or file path using Coil. */
+    /** Load an image from a URL or file path using Coil. Relative server
+     *  paths (``/uploads/x.jpg`` from chat markdown) are resolved against
+     *  the configured server URL. */
     fun loadImage(url: String) {
         showLoading()
         hideError()
+        val resolved = Config.resolveImageUrl(url)
+        Timber.i("ImageMessageView: loading %s", resolved)
 
         imageLoader.enqueue(
             ImageRequest.Builder(context)
-                .data(url)
+                .data(resolved)
                 .target { drawable ->
                     hideLoading()
                     imageView?.setImageDrawable(drawable)
                     imageView?.visibility = View.VISIBLE
                 }
+                .listener(
+                    onError = { _, result ->
+                        hideLoading()
+                        showError("Image failed to load")
+                        Timber.e(result.throwable, "ImageMessageView: failed to load %s", resolved)
+                    }
+                )
                 .build()
         )
     }
@@ -84,6 +104,13 @@ class ImageMessageView @JvmOverloads constructor(
                     imageView?.setImageDrawable(drawable)
                     imageView?.visibility = View.VISIBLE
                 }
+                .listener(
+                    onError = { _, result ->
+                        hideLoading()
+                        showError("Image failed to load")
+                        Timber.e(result.throwable, "ImageMessageView: failed to load %s", uri)
+                    }
+                )
                 .build()
         )
     }

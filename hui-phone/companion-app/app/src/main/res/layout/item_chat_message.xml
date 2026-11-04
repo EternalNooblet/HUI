@@ -14,13 +14,14 @@
         android:paddingHorizontal="16dp"
         android:paddingVertical="10dp">
 
-        <TextView
-            android:id="@+id/messageText"
+        <!-- Message content: rendered blocks (text/markdown/image) via
+             MarkdownRenderer, NOT a raw TextView. A plain TextView here
+             showed ![alt](url) as literal text for attached images. -->
+        <LinearLayout
+            android:id="@+id/messageContent"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Message"
-            android:textSize="16sp"
-            android:textColor="@color/text_primary" />
+            android:orientation="vertical" />
 
         <TextView
             android:id="@+id/timestampText"
@@ -28,7 +29,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="12:00"
-            android:textSize="11sp"
+            android:textSize="@dimen/pk_text_xs"
             android:textColor="@color/timestamp_assistant" />
 
     </LinearLayout>

@@ -87,6 +87,26 @@ object Config {
         getPrefs().edit().putString("server_url", url).commit()
     }
 
+    /** https base of the configured server URL (``wss://h/p`` -> ``https://h/p``,
+     *  ``ws://h/p`` -> ``http://h/p``). Empty when no server is configured. */
+    fun httpBaseUrl(): String {
+        val base = serverUrl.ifBlank { loadServerUrl() }
+        if (base.isBlank()) return ""
+        return base.trimEnd('/')
+            .replace("wss://", "https://")
+            .replace("ws://", "http://")
+    }
+
+    /** Resolve a server-relative path (``/uploads/x.jpg``) to an absolute
+     *  https URL the image loader can fetch. Absolute URLs pass through. */
+    fun resolveImageUrl(path: String): String {
+        val trimmed = path.trim()
+        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed
+        val base = httpBaseUrl()
+        if (base.isBlank()) return trimmed
+        return base + if (trimmed.startsWith("/")) trimmed else "/$trimmed"
+    }
+
     private fun deriveWsUrl(url: String): String =
         if (url.isBlank()) "" else url.replace("http://", "ws://").replace("https://", "wss://") + "/ws"
 

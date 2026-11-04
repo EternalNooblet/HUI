@@ -47,7 +47,8 @@ class AutoSizingEditText @JvmOverloads constructor(
             androidx.core.content.ContextCompat.getColor(context, R.color.pk_muted_foreground)
         ))
         setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.pk_foreground))
-        textSize = 21f
+        // text-base 16sp (sp setter = scales with user font setting)
+        textSize = 16f
         gravity = Gravity.CENTER_HORIZONTAL or Gravity.CENTER_VERTICAL
         setHorizontallyScrolling(false)
         setVerticalScrollBarEnabled(false)
@@ -66,7 +67,7 @@ class AutoSizingEditText @JvmOverloads constructor(
         setClickable(true)
         setLongClickable(true)
 
-        // Fixed 21sp typed (70% of 30sp placeholder) — no autosize shrink
+        // text-base 16sp, same as placeholder — no autosize shrink
         TextViewCompat.setAutoSizeTextTypeWithDefaults(this, TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE)
 
         // Text watcher for height adjustment

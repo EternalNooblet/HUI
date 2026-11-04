@@ -96,15 +96,17 @@
     <dimen name="pk_space_6">24dp</dimen>
     <dimen name="pk_space_8">32dp</dimen>
 
-    <!-- Typography (exact from prompt-kit) -->
+    <!-- Typography: Tailwind/shadcn scale in sp (web rem -> Android sp,
+         scales with the user's font-size setting; never fixed px/dp).
+         xs=12, sm=14, base=16, lg=18, xl=20. Code stays 13 per prompt-kit. -->
     <!-- text-xs -->
-    <dimen name="pk_text_xs">11sp</dimen>
+    <dimen name="pk_text_xs">12sp</dimen>
     <!-- text-sm -->
-    <dimen name="pk_text_sm">13sp</dimen>
+    <dimen name="pk_text_sm">14sp</dimen>
     <!-- text-base -->
-    <dimen name="pk_text_base">15sp</dimen>
+    <dimen name="pk_text_base">16sp</dimen>
     <!-- text-lg -->
-    <dimen name="pk_text_lg">17sp</dimen>
+    <dimen name="pk_text_lg">18sp</dimen>
     <!-- text-xl -->
     <dimen name="pk_text_xl">20sp</dimen>
     <!-- text-[13px] for code blocks -->

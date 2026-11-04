@@ -118,20 +118,46 @@ class MainActivity : AppCompatActivity() {
             // StickToBottomFab: attach to chat RecyclerView
             stickToBottomFab.attach(chatRecyclerView)
 
-            // AttachmentPicker: pick → upload to server → insert markdown image into input
-            attachmentPicker = AttachmentPicker(this, promptInputLayout) { uri ->
-                Timber.i("Attachment selected: %s", uri.toString())
-                uploadAttachment(uri) { url ->
-                    runOnUiThread {
-                        val filename = url.substringAfterLast('/')
-                        val currentText = promptInputLayout.getText()
-                        val newText = if (currentText.isNotEmpty()) "$currentText\n" else ""
-                        promptInputLayout.setText("$newText![$filename]($url)")
+            // AttachmentPicker (prompt-kit FileUpload): pick → upload to
+            // server → AttachmentState. Preview chips live above the
+            // textarea; send is gated while an upload is in flight.
+            attachmentPicker = AttachmentPicker(
+                this, promptInputLayout,
+                onAttachmentSelected = { uri ->
+                    Timber.i("Attachment selected: %s", uri.toString())
+                    com.hui.companion.util.AttachmentState.setUploading(1)
+                    attachmentPicker.setUploading(uri, true)
+                    uploadAttachment(uri) { url ->
+                        com.hui.companion.util.AttachmentState.setUploading(-1)
+                        attachmentPicker.setUploading(uri, false)
+                        if (url.isNotEmpty()) {
+                            val filename = try { java.net.URLDecoder.decode(url.substringAfterLast('/'), "UTF-8") } catch (e: Exception) { url.substringAfterLast('/') }
+                            // Thumbnail chip is the UI; keep the input clean. The
+                            // server-relative URL travels in the chat payload, not
+                            // as ugly markdown text in the user-visible input.
+                            com.hui.companion.util.AttachmentState.add(uri.toString(), url, filename)
+                        } else {
+                            android.widget.Toast.makeText(
+                                this, "Image upload failed — attachment removed",
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                            attachmentPicker.removeChip(uri.toString())
+                        }
                     }
+                },
+                onAttachmentRemoved = { id ->
+                    com.hui.companion.util.AttachmentState.remove(id)
                 }
-            }
+            )
             promptInputLayout.setOnAttachmentClickListener {
                 attachmentPicker.pickAttachment()
+            }
+            promptInputLayout.setAttachmentStateProviders(
+                hasAttachment = { com.hui.companion.util.AttachmentState.hasReady() },
+                isUploading = { com.hui.companion.util.AttachmentState.isUploading() }
+            )
+            promptInputLayout.setOnSendSuccessListener {
+                attachmentPicker.clearAll()
             }
 
             // VoiceUi attach — chat mode with voice input via mic button
@@ -145,18 +171,12 @@ class MainActivity : AppCompatActivity() {
                 findViewById(R.id.thinkingBarView)
             )
 
-            // Send button enable/disable based on input text
-            val sendBtn = findViewById<ImageButton>(R.id.promptInputSendBtn)
-            val textarea = promptInputLayout.getTextarea()
-            textarea?.addTextChangedListener(object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-                override fun afterTextChanged(s: Editable?) {
-                    val hasText = s?.isNotEmpty() == true
-                    sendBtn.isEnabled = hasText
-                    sendBtn.alpha = if (hasText) 1.0f else 0.5f
-                }
-            })
+            // Send enable/disable: owned by PromptInputLayout now
+            // (text OR ready attachment, gated while uploading). Attachment
+            // changes re-evaluate via AttachmentState listener.
+            com.hui.companion.util.AttachmentState.addListener {
+                promptInputLayout.refreshSendState()
+            }
 
             wireSessions(); startVoiceLoops()
             requestPermissionsAndAutoStart()
@@ -303,14 +323,32 @@ class MainActivity : AppCompatActivity() {
 
     /** Upload a picked attachment to the server, then callback with the public URL. */
     private fun uploadAttachment(uri: android.net.Uri, callback: (String) -> Unit) {
-        // Copy content URI to a temp cache file for OkHttp
-        val cacheFile = java.io.File(cacheDir, "attachment_${System.currentTimeMillis()}")
-        cacheDir.mkdirs()
-        contentResolver.openInputStream(uri)?.use { input ->
-            java.io.FileOutputStream(cacheFile).use { output ->
-                input.copyTo(output)
+        // Copy content URI to a temp cache file for OkHttp. Keep the original
+        // display name when possible so uploaded filenames look natural.
+        val rawName = runCatching {
+            contentResolver.query(uri, null, null, null, null)?.use { c ->
+                if (c.moveToFirst()) c.getString(c.getColumnIndexOrThrow(android.provider.MediaStore.MediaColumns.DISPLAY_NAME)) else null
             }
-        } ?: return
+        }.getOrNull() ?: "attachment_${System.currentTimeMillis()}.jpg"
+        val safeName = rawName.substringAfterLast('/').substringAfterLast('\\')
+            .replace("[^A-Za-z0-9._-]", "_").takeIf { it.isNotBlank() } ?: "attachment.jpg"
+        val filename = if (safeName.contains('.')) safeName else "$safeName.jpg"
+        val cacheFile = java.io.File(cacheDir, filename)
+        cacheDir.mkdirs()
+        // Every path must invoke callback exactly once — the caller
+        // decrements uploadingCount and removes the chip on "".
+        val copied = runCatching {
+            contentResolver.openInputStream(uri)?.use { input ->
+                java.io.FileOutputStream(cacheFile).use { output -> input.copyTo(output) }
+            } != null
+        }.getOrElse { e ->
+            Timber.e(e, "Attachment copy failed")
+            false
+        }
+        if (!copied || cacheFile.length() == 0L) {
+            runOnUiThread { callback("") }
+            return
+        }
 
         val client = com.hui.companion.util.PinnedTls.okHttpClient()
         val requestBody = MultipartBody.Builder()
@@ -335,9 +373,11 @@ class MainActivity : AppCompatActivity() {
         client.newCall(request).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
                 Timber.e(e, "Attachment upload failed")
+                runOnUiThread { callback("") }
             }
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
+                var url = ""
                 response.use {
                     if (!response.isSuccessful) {
                         Timber.w("Upload failed: ${response.code}")
@@ -346,12 +386,13 @@ class MainActivity : AppCompatActivity() {
                     val body = response.body?.string() ?: return@use
                     try {
                         val json = com.google.gson.JsonParser.parseString(body).asJsonObject
-                        val url = json.get("url").asString
-                        runOnUiThread { callback(url) }
+                        url = json.get("url").asString
                     } catch (e: Exception) {
                         Timber.e(e, "Failed to parse upload response: $body")
                     }
                 }
+                val finalUrl = url
+                runOnUiThread { callback(finalUrl) }
             }
         })
     }
