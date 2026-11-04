@@ -279,11 +279,19 @@ def print_ascii_qr(qrcode, payload_str: str) -> None:
     qr.add_data(payload_str)
     qr.make(fit=True)
     # print_ascii renders half-blocks; invert=True gives dark-on-light
-    # modules suitable for phone cameras. Fall back if the API differs.
+    # modules suitable for phone cameras. Pad each line to full width with
+    # braille blanks so trailing quiet-zone whites can't be trimmed away
+    # (which made the right edge look ragged in chat/terminal copies).
+    import io
+    buf = io.StringIO()
     try:
-        qr.print_ascii(invert=True)
+        qr.print_ascii(out=buf, invert=True)
     except TypeError:
-        qr.print_ascii()
+        qr.print_ascii(out=buf)
+    lines = buf.getvalue().split("\n")
+    width = max(len(line) for line in lines)
+    for line in lines:
+        print(line + "⠀" * (width - len(line)))
 
 
 def main() -> None:
