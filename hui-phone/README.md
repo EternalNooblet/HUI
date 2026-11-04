@@ -4,10 +4,10 @@
 <img src="face%20only%20-%20canvas.png" width="420" alt="HUI app icon — face canvas">
 </p>
 
-<p align="center">Android companion app. The phone is a sensor client; all heavy compute runs on a laptop server over WSS/TLS.</p>
+<p align="center">Android companion app. The phone is a sensor client; all heavy compute runs on the server over WSS/TLS.</p>
 
 ```
-[Phone: Android 8.1+] ──WSS/TLS──▶ [Laptop: wss://host:8081/ws]
+[Phone: Android 8.1+] ──WSS/TLS──▶ [Server: wss://host:8081/ws]
   foreground service, battery/screen/notification monitors,
   dual-mode voice + text chat UI
 ```
@@ -18,7 +18,7 @@
 2. Unzip the server zip, run `./install.sh`, then start the server
    (`companion_wss_server.py`).
 3. Install the APK on your phone, grant camera + mic when it asks.
-4. On the laptop run `./hui-qr`, scan the QR in the app
+4. On the server machine run `./hui-qr`, scan the QR in the app
    (Settings → Authentication). Done — the app connects on its own.
 
 That's it. Voice input, dashboard auth, and troubleshooting details live in

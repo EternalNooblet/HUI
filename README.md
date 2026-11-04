@@ -5,7 +5,7 @@ Two components, no shared deps, no shared builds.
 | Component | What it is | Build |
 |-----------|------------|-------|
 | [hui-cli/](hui-cli/) | Go terminal client for a remote Hermes gateway | `./build.sh` → `builds/hui` |
-| [hui-phone/](hui-phone/) | Android companion app + laptop WSS server | `./gradlew assembleRelease` → APK |
+| [hui-phone/](hui-phone/) | Android companion app + WSS server | `./gradlew assembleRelease` → APK |
 
 ### Demo
 
@@ -23,7 +23,7 @@ https://github.com/user-attachments/assets/f7f06a7f-36cd-4025-932a-67bf193476c7
                     token auth │               │ token auth
                                │               │
         ┌──────────────────────┴───┐   ┌───────┴──────────────────────┐
-        │   hui-cli (Go, laptop)   │   │  hui-phone/server (Python)   │  (laptop)
+        │   hui-cli (Go)   │   │  hui-phone/server (Python)
         │   terminal chat TUI      │   │  WSS :8081 · STT · dispatch  │
         └──────────────────────────┘   └───────┬──────────────────────┘
                                                │  WSS/TLS (phone connects out)
@@ -37,7 +37,7 @@ https://github.com/user-attachments/assets/f7f06a7f-36cd-4025-932a-67bf193476c7
 
 - **hui-cli** talks straight to the gateway — no server of its own.
 - **hui-phone** is the reverse: the phone is a thin sensor client, and the
-  laptop server does the heavy lifting (speech-to-text, gateway bridge, commands).
+  server does the heavy lifting (speech-to-text, gateway bridge, commands).
 
 ## Quick start
 
@@ -46,7 +46,7 @@ https://github.com/user-attachments/assets/f7f06a7f-36cd-4025-932a-67bf193476c7
 cd hui-cli && ./build.sh
 ./builds/hui -host <gateway> -token <blob>
 
-# hui-phone server (run on the laptop the phone connects to)
+# hui-phone server (run on the machine the phone connects to)
 cd hui-phone/server && python3 companion_wss_server.py
 
 # hui-phone app (needs JDK 17 + Android SDK, see hui-phone/README.md)

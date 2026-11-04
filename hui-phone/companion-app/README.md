@@ -1,6 +1,6 @@
 # Companion App — Android client
 
-The Android half of [HUI Phone](../README.md). Connects to the laptop
+The Android half of [HUI Phone](../README.md). Connects to the
 server in [`../server/`](../server/) over WSS and pushes sensor events;
 receives commands (speak, screen actions, app launch) and shows a
 dual-mode voice/text chat UI.
