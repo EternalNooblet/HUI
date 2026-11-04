@@ -102,15 +102,16 @@ requires an APK rebuild.
 ## 6. Phone login via QR
 
 ```bash
-./hui-qr
+hui-qr
 ```
 
-The launcher finds the Hermes venv Python on any install (via
-`~/.hermes/installs/*/facts.json`) and prints the QR as colored square
-pixels (qrterminal) directly into the terminal. Starts `serve` if needed,
-mints a signed token (1-year expiry), encodes server URL + token. On the
-phone: Settings → Authentication → scan. The URL and token land in
-encrypted storage; no IP is baked into the app, so this works on any network.
+The launcher (installed to `~/.local/bin` by `install.sh`) finds the Hermes
+venv Python on any install (via `~/.hermes/installs/*/facts.json`) and prints
+the QR as colored square pixels (qrterminal) directly into the terminal.
+Starts `serve` if needed, mints a signed token (1-year expiry), encodes
+server URL + token. On the phone: Settings → Authentication → scan. The
+URL and token land in encrypted storage; no IP is baked into the app, so
+this works on any network.
 
 Revoke a lost phone: `hermes_revoke_token.py --jti <jti>` (or `--list`).
 
