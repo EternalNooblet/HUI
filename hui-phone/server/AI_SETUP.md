@@ -5,7 +5,7 @@ bottom; each step has a check. Everything here is verified against a real
 install — nothing is assumed.
 
 Prereqs: Hermes Agent installed (`hermes` on PATH, `~/.hermes/` exists),
-an Android phone (8.1+), laptop + phone on the same LAN.
+an Android phone (8.1+), server machine + phone on the same LAN.
 
 ## 1. Start `hermes serve`
 
