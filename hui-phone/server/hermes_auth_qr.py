@@ -263,11 +263,12 @@ def print_ascii_qr(qrcode, payload_str: str) -> None:
                        box_size=1, border=2)
     qr.add_data(payload_str)
     qr.make(fit=True)
-    # Plain '#' + space only: half-block glyphs (▀▄█) render as cyrillic /
-    # off-shape in many terminal fonts, which breaks scanning. One char
-    # per module keeps it 73 wide (fits 80 cols) and monospace-aligned.
-    for row in qr.get_matrix():
-        print("".join("#" if cell else " " for cell in row))
+    # print_ascii renders half-blocks; invert=True gives dark-on-light
+    # modules suitable for phone cameras. Fall back if the API differs.
+    try:
+        qr.print_ascii(invert=True)
+    except TypeError:
+        qr.print_ascii()
 
 
 def main() -> None:
