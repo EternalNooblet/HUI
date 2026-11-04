@@ -34,12 +34,6 @@ adb shell am start-foreground-service -n com.hui.companion/.service.CompanionSer
 
 Local builds without keystore settings sign with the debug key; CI releases sign with the real release key.
 
-## Releases
-
-Pushing a `v*` tag builds the signed APK + AAB in GitHub Actions and
-publishes them (with the Go binaries) to one GitHub Release. To test
-without publishing: Actions → release → Run workflow (build only).
-
 ## Protocol (WSS)
 
 - Phone → server: `hello`, then events (battery, screen, notification, audio)
