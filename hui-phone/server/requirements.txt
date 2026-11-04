@@ -1,0 +1,6 @@
+# HUI Phone server — Python dependencies
+# Install into the SAME python that runs companion_wss_server.py
+# (the Hermes venv python, so voice-in can import tools.transcription_tools).
+aiohttp
+websockets
+qrcode

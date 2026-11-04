@@ -12,6 +12,24 @@
   dual-mode voice + text chat UI
 ```
 
+## Setup
+
+Full walkthrough (human + agent checklists): [`server/AI_SETUP.md`](server/AI_SETUP.md).
+The short version:
+
+1. **Start the Hermes backend:** `hermes serve --host 0.0.0.0` (or let the
+   QR script start it for you). Check with `hermes serve --status`.
+2. **Dashboard auth:** set `dashboard.basic_auth` (username + secret) in
+   `~/.hermes/config.yaml` — without it, phone logins are refused.
+3. **Install the server:** download `hui-phone-server-<tag>.zip` from the
+   GitHub Release, unzip, run `./install.sh`, then start
+   `companion_wss_server.py` (WSS on :8081).
+4. **Voice-in only (optional):** set `stt.enabled: true` in the Hermes
+   config; the speech model downloads on first use.
+5. **Connect the phone:** run `hermes_auth_qr.py`, scan the QR in the app
+   (Settings → Authentication). The APK has no server address baked in —
+   the QR supplies it, so any network works.
+
 ## Run it
 
 ```bash
