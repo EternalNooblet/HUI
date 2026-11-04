@@ -5,7 +5,6 @@ import android.os.Handler
 import android.os.Looper
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
 import com.hui.companion.R
 import com.hui.companion.db.MessageEntity
 import com.hui.companion.db.MessageRepositoryProvider
@@ -69,9 +68,12 @@ object VoiceUi {
 
         messageRepository = MessageRepositoryProvider.getInstance(act)
 
-        // Setup chat RecyclerView
+        // Setup chat RecyclerView. Do NOT replace the layoutManager:
+        // ChatRecyclerView creates its own in init and hands that exact
+        // instance to StickToBottomScrollListener. Replacing it here
+        // orphaned the listener (its manager had no children, so
+        // at-bottom tracking and its scrolls were dead).
         chatAdapter = ChatListAdapter(act)
-        chatRecyclerView?.layoutManager = LinearLayoutManager(act)
         chatRecyclerView?.adapter = chatAdapter
 
         // Load existing messages
@@ -93,6 +95,11 @@ object VoiceUi {
         val scope = CoroutineScope(Dispatchers.Main)
         loadJob = scope.launch {
             messageRepository?.observeSessionMessages(session)?.collect { messages ->
+                // submitList is async (AsyncListDiffer): itemCount right
+                // after the call is still the OLD list, so scrolling
+                // immediately landed on the previous last item and the
+                // new message stayed below the viewport. The Runnable
+                // runs after the diff is committed and laid out.
                 chatAdapter?.submitList(messages.map { entity ->
                     com.hui.companion.voice.ChatMessage(
                         id = entity.id,
@@ -101,8 +108,22 @@ object VoiceUi {
                         timestamp = entity.timestamp,
                         voiceSession = entity.voiceSession
                     )
-                })
-                scrollToBottom()
+                }) {
+                    // Own messages always jump to bottom: the user just
+                    // tapped send, so their bubble must be visible even
+                    // if they were scrolled up reading history. Assistant
+                    // replies respect stick-to-bottom (FAB covers the
+                    // scrolled-up case). The unconditional own-message
+                    // path also bypasses an at-bottom race: user inserts
+                    // land mid keyboard-hide resize, which can flip
+                    // isAtBottom to false (last child partially visible
+                    // while the RecyclerView height is transitioning)
+                    // before this callback runs.
+                    val lastRole = messages.lastOrNull()?.role
+                    if (lastRole == "user" || chatRecyclerView?.isUserAtBottom() == true) {
+                        scrollToBottom()
+                    }
+                }
             }
         }
     }
@@ -311,7 +332,7 @@ object VoiceUi {
 
     private fun scrollToBottom() {
         activity?.runOnUiThread {
-            chatRecyclerView?.scrollToPosition(chatAdapter?.itemCount?.minus(1) ?: 0)
+            chatRecyclerView?.scrollToBottomInstant()
         }
     }
 

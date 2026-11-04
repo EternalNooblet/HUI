@@ -69,13 +69,21 @@ class ChatRecyclerView constructor(
     /** Returns true if user is scrolled to bottom */
     fun isUserAtBottom(): Boolean = stickToBottomListener?.isUserAtBottom() ?: true
 
-    /** Scroll to bottom instantly */
+    /** Scroll to bottom instantly, aligning the LAST item's bottom with
+     *  the RecyclerView's bottom (not just its top). scrollToPosition
+     *  alone aligns the item top, so a tall last bubble (long assistant
+     *  reply, image) can end up mostly below the viewport. The second
+     *  post runs after layout, when the last child has real bounds. */
     fun scrollToBottomInstant() {
-        stickToBottomListener?.let { listener ->
-            val itemCount = layoutManager?.itemCount ?: 0
-            if (itemCount > 0) {
-                scrollToPosition(itemCount - 1)
-            }
+        val lm = getChatLayoutManager() ?: return
+        val itemCount = lm.itemCount
+        if (itemCount <= 0) return
+        val last = itemCount - 1
+        scrollToPosition(last)
+        post {
+            val child = lm.findViewByPosition(last) ?: return@post
+            val delta = child.bottom - (height - paddingBottom)
+            if (delta != 0) scrollBy(0, delta)
         }
     }
 
